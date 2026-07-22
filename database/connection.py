@@ -1,44 +1,53 @@
 import os
 import sqlite3
+from urllib.parse import urlparse
 
-# Caminho absoluto para o banco de dados na raiz do projeto
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATABASE_PATH = os.path.join(BASE_DIR, "database.db")
-
+# Tenta pegar a URL do Supabase/PostgreSQL configurada nas variáveis de ambiente do Render
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_db_connection():
-    """Estabelece e retorna a conexão com o banco de dados SQLite.
-
-    Configura o row_factory para acessar colunas pelo nome (como dicionários).
+    """Estabelece e retorna a conexão com o banco de dados.
+    Usa PostgreSQL (Supabase) se estiver no Render, ou SQLite se estiver local.
     """
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    # Ativa o suporte a chaves estrangeiras no SQLite
-    conn.execute("PRAGMA foreign_keys = ON;")
-    return conn
-
+    if DATABASE_URL:
+        import psycopg2
+        import psycopg2.extras
+        # Conexão com o PostgreSQL do Supabase
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        # Garante que as consultas retornem dicionários (similar ao sqlite3.Row)
+        return conn
+    else:
+        # Conexão local com SQLite para testes na sua máquina
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        DATABASE_PATH = os.path.join(BASE_DIR, "database.db")
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON;")
+        return conn
 
 def init_db():
-    """Cria as tabelas do sistema automaticamente caso não existam
-
-    e aplica migrações de colunas novas.
-    """
+    """Cria as tabelas do sistema automaticamente caso não existam."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    is_postgres = bool(DATABASE_URL)
+
+    # Ajuste de sintaxe para SERIAL (PostgreSQL) vs AUTOINCREMENT (SQLite)
+    id_pk = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+
     # 0. Tabela de Usuários
-    cursor.execute("""
+    cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_pk},
             email TEXT UNIQUE NOT NULL,
             senha TEXT NOT NULL
         )
     """)
 
-    # 1. Tabela de Despesas Gerais (Padronizada em minúsculo)
-    cursor.execute("""
+    # 1. Tabela de Despesas Gerais
+    cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS despesas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_pk},
             user_id INTEGER,
             descricao TEXT NOT NULL,
             valor REAL NOT NULL,
@@ -50,10 +59,10 @@ def init_db():
         )
     """)
 
-    # 2. Tabela de Receitas / Ganhos (Padronizada em minúsculo)
-    cursor.execute("""
+    # 2. Tabela de Receitas / Ganhos
+    cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS receitas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_pk},
             user_id INTEGER,
             descricao TEXT NOT NULL,
             valor REAL NOT NULL,
@@ -64,10 +73,10 @@ def init_db():
         )
     """)
 
-    # 3. Tabela de Cartões de Crédito (Padronizada em minúsculo)
-    cursor.execute("""
+    # 3. Tabela de Cartões de Crédito
+    cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS cartoes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_pk},
             user_id INTEGER,
             nome TEXT NOT NULL,
             banco TEXT NOT NULL,
@@ -79,10 +88,10 @@ def init_db():
         )
     """)
 
-    # 4. Tabela de Compras do Cartão (Padronizada em minúsculo)
-    cursor.execute("""
+    # 4. Tabela de Compras do Cartão
+    cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS comprascartao (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_pk},
             cartao_id INTEGER NOT NULL,
             descricao TEXT NOT NULL,
             valor REAL NOT NULL,
@@ -94,10 +103,10 @@ def init_db():
         )
     """)
 
-    # 5. Tabela de Metas Financeiras (Padronizada em minúsculo)
-    cursor.execute("""
+    # 5. Tabela de Metas Financeiras
+    cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS metas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_pk},
             user_id INTEGER,
             nome TEXT NOT NULL,
             categoria TEXT NOT NULL,
@@ -109,39 +118,23 @@ def init_db():
         )
     """)
 
-    # 6. Tabela de Transações Recorrentes / Fixas (Padronizada em minúsculo)
-    cursor.execute("""
+    # 6. Tabela de Transações Recorrentes / Fixas
+    cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS transacoesrecorrentes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {id_pk},
             user_id INTEGER,
             descricao TEXT NOT NULL,
             valor REAL NOT NULL,
-            tipo TEXT NOT NULL, -- 'Despesa' ou 'Receita'
+            tipo TEXT NOT NULL,
             categoria TEXT,
             forma_pagamento TEXT,
             dia_vencimento INTEGER NOT NULL,
             ativo INTEGER DEFAULT 1,
-            ultimo_processamento TEXT, -- Formato 'YYYY-MM' para controle de duplicidade
+            ultimo_processamento TEXT,
             FOREIGN KEY (user_id) REFERENCES usuarios (id) ON DELETE CASCADE
         )
     """)
 
-    # Migrações automáticas para garantir compatibilidade com bancos antigos/restaurados
-    migracoes = [
-        ("despesas", "user_id", "INTEGER"),
-        ("receitas", "user_id", "INTEGER"),
-        ("cartoes", "user_id", "INTEGER"),
-        ("metas", "user_id", "INTEGER"),
-        ("transacoesrecorrentes", "user_id", "INTEGER"),
-        ("comprascartao", "categoria_id", "INTEGER")
-    ]
-
-    for tabela, coluna, tipo in migracoes:
-        try:
-            cursor.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo};")
-        except sqlite3.OperationalError:
-            # A coluna já existe, ignora o erro
-            pass
-
     conn.commit()
+    cursor.close()
     conn.close()
