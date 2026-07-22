@@ -17,7 +17,12 @@ def get_db_connection():
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
             return conn
         except ImportError:
-            raise RuntimeError("O pacote psycopg2 não está instalado localmente, mas a DATABASE_URL foi detectada.")
+            try:
+                import psycopg  # type: ignore
+                conn = psycopg.connect(DATABASE_URL)
+                return conn
+            except ImportError:
+                raise RuntimeError("Erro: Nenhum driver do Postgres (psycopg2 ou psycopg) está instalado.")
     else:
         # Conexão local com SQLite para testes na sua máquina
         BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
