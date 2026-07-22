@@ -28,6 +28,7 @@ def listar_receitas(fonte=None, busca=None, data_inicio=None, data_fim=None):
 
     cursor.execute(query, params)
     receitas = cursor.fetchall()
+    cursor.close()
     conn.close()
     return receitas
 
@@ -41,6 +42,7 @@ def criar_receita(descricao, valor, fonte, data_receita, observacoes=None):
         VALUES ({ph}, {ph}, {ph}, {ph}, {ph})
     ''', (descricao, valor, fonte, data_receita, observacoes))
     conn.commit()
+    cursor.close()
     conn.close()
 
 def obter_receita_por_id(receita_id):
@@ -50,6 +52,7 @@ def obter_receita_por_id(receita_id):
     
     cursor.execute(f"SELECT * FROM Receitas WHERE id = {ph}", (receita_id,))
     receita = cursor.fetchone()
+    cursor.close()
     conn.close()
     return receita
 
@@ -64,6 +67,7 @@ def atualizar_receita(receita_id, descricao, valor, fonte, data_receita, observa
         WHERE id = {ph}
     ''', (descricao, valor, fonte, data_receita, observacoes, receita_id))
     conn.commit()
+    cursor.close()
     conn.close()
 
 def deletar_receita(receita_id):
@@ -73,6 +77,7 @@ def deletar_receita(receita_id):
     
     cursor.execute(f"DELETE FROM Receitas WHERE id = {ph}", (receita_id,))
     conn.commit()
+    cursor.close()
     conn.close()
 
 def calcular_total_receitas():
@@ -80,5 +85,19 @@ def calcular_total_receitas():
     cursor = conn.cursor()
     cursor.execute("SELECT SUM(valor) as total FROM Receitas")
     resultado = cursor.fetchone()
+    cursor.close()
     conn.close()
-    return resultado['total'] if resultado and resultado['total'] else 0.0
+    
+    if not resultado:
+        return 0.0
+    
+    # Compatibilidade segura para pegar o valor do dicionário ou tupla
+    if isinstance(resultado, dict):
+        total = resultado.get('total') or resultado.get('TOTAL')
+    else:
+        try:
+            total = resultado['total']
+        except Exception:
+            total = resultado[0]
+            
+    return float(total) if total else 0.0
