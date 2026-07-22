@@ -1,25 +1,19 @@
-import sqlite3
-
-DATABASE = 'database.db'
-
-def get_connection():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+from database.connection import DATABASE_URL, get_db_connection
 
 def listar_metas(categoria=None, busca=None):
-    conn = get_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
     
+    ph = "%s" if DATABASE_URL else "?"
     query = "SELECT * FROM metas WHERE 1=1"
     params = []
 
     if categoria:
-        query += " AND categoria = ?"
+        query += f" AND categoria = {ph}"
         params.append(categoria)
     
     if busca:
-        query += " AND nome LIKE ?"
+        query += f" AND nome LIKE {ph}"
         params.append(f"%{busca}%")
 
     cursor.execute(query, params)
@@ -28,37 +22,45 @@ def listar_metas(categoria=None, busca=None):
     return [dict(m) for m in metas]
 
 def obter_meta_por_id(id):
-    conn = get_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM metas WHERE id = ?", (id,))
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f"SELECT * FROM metas WHERE id = {ph}", (id,))
     meta = cursor.fetchone()
     conn.close()
     return dict(meta) if meta else None
 
 def criar_meta(nome, categoria, valor_alvo, valor_atual, data_limite, observacoes):
-    conn = get_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("""
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f"""
         INSERT INTO metas (nome, categoria, valor_alvo, valor_atual, data_limite, observacoes)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph})
     """, (nome, categoria, valor_alvo, valor_atual, data_limite, observacoes))
     conn.commit()
     conn.close()
 
 def atualizar_meta(id, nome, categoria, valor_alvo, valor_atual, data_limite, observacoes):
-    conn = get_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("""
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f"""
         UPDATE metas
-        SET nome = ?, categoria = ?, valor_alvo = ?, valor_atual = ?, data_limite = ?, observacoes = ?
-        WHERE id = ?
+        SET nome = {ph}, categoria = {ph}, valor_alvo = {ph}, valor_atual = {ph}, data_limite = {ph}, observacoes = {ph}
+        WHERE id = {ph}
     """, (nome, categoria, valor_alvo, valor_atual, data_limite, observacoes, id))
     conn.commit()
     conn.close()
 
 def excluir_meta(id):
-    conn = get_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM metas WHERE id = ?", (id,))
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f"DELETE FROM metas WHERE id = {ph}", (id,))
     conn.commit()
     conn.close()

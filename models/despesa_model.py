@@ -1,4 +1,4 @@
-from database.connection import get_db_connection
+from database.connection import DATABASE_URL, get_db_connection
 
 def listar_despesas(mes=None, categoria=None, busca=None, ordem='DESC'):
     """
@@ -7,19 +7,27 @@ def listar_despesas(mes=None, categoria=None, busca=None, ordem='DESC'):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    ph = "%s" if DATABASE_URL else "?"
     query = "SELECT * FROM Despesas WHERE 1=1"
     params = []
 
     if mes:
-        query += " AND strftime('%m', data_despesa) = ?"
-        params.append(f"{int(mes):02d}")
+        mes_formatado = f"{int(mes):02d}"
+        if DATABASE_URL:
+            # Compatibilidade com PostgreSQL
+            query += f" AND EXTRACT(MONTH FROM data_despesa) = {ph}"
+            params.append(int(mes_formatado))
+        else:
+            # Compatibilidade com SQLite
+            query += f" AND strftime('%m', data_despesa) = {ph}"
+            params.append(mes_formatado)
 
     if categoria:
-        query += " AND categoria = ?"
+        query += f" AND categoria = {ph}"
         params.append(categoria)
 
     if busca:
-        query += " AND (descricao LIKE ? OR observacoes LIKE ?)"
+        query += f" AND (descricao LIKE {ph} OR observacoes LIKE {ph})"
         params.append(f"%{busca}%")
         params.append(f"%{busca}%")
 
@@ -36,7 +44,9 @@ def obter_despesa_por_id(despesa_id):
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM Despesas WHERE id = ?", (despesa_id,))
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f"SELECT * FROM Despesas WHERE id = {ph}", (despesa_id,))
     despesa = cursor.fetchone()
     conn.close()
     return despesa
@@ -47,9 +57,11 @@ def criar_despesa(descricao, valor, categoria, data_despesa, forma_pagamento, ob
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('''
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f'''
         INSERT INTO Despesas (descricao, valor, categoria, data_despesa, forma_pagamento, observacoes)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph})
     ''', (descricao, valor, categoria, data_despesa, forma_pagamento, observacoes))
     conn.commit()
     conn.close()
@@ -60,10 +72,12 @@ def atualizar_despesa(despesa_id, descricao, valor, categoria, data_despesa, for
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('''
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f'''
         UPDATE Despesas
-        SET descricao = ?, valor = ?, categoria = ?, data_despesa = ?, forma_pagamento = ?, observacoes = ?
-        WHERE id = ?
+        SET descricao = {ph}, valor = {ph}, categoria = {ph}, data_despesa = {ph}, forma_pagamento = {ph}, observacoes = {ph}
+        WHERE id = {ph}
     ''', (descricao, valor, categoria, data_despesa, forma_pagamento, observacoes, despesa_id))
     conn.commit()
     conn.close()
@@ -74,7 +88,9 @@ def excluir_despesa(despesa_id):
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM Despesas WHERE id = ?", (despesa_id,))
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f"DELETE FROM Despesas WHERE id = {ph}", (despesa_id,))
     conn.commit()
     conn.close()
 

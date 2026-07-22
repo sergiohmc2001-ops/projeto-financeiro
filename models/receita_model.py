@@ -1,26 +1,27 @@
-from database.connection import get_db_connection
+from database.connection import DATABASE_URL, get_db_connection
 
 def listar_receitas(fonte=None, busca=None, data_inicio=None, data_fim=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    ph = "%s" if DATABASE_URL else "?"
     query = "SELECT * FROM Receitas WHERE 1=1"
     params = []
 
     if fonte:
-        query += " AND fonte = ?"
+        query += f" AND fonte = {ph}"
         params.append(fonte)
 
     if busca:
-        query += " AND descricao LIKE ?"
+        query += f" AND descricao LIKE {ph}"
         params.append(f"%{busca}%")
 
     if data_inicio:
-        query += " AND data_receita >= ?"
+        query += f" AND data_receita >= {ph}"
         params.append(data_inicio)
 
     if data_fim:
-        query += " AND data_receita <= ?"
+        query += f" AND data_receita <= {ph}"
         params.append(data_fim)
 
     query += " ORDER BY data_receita DESC"
@@ -33,9 +34,11 @@ def listar_receitas(fonte=None, busca=None, data_inicio=None, data_fim=None):
 def criar_receita(descricao, valor, fonte, data_receita, observacoes=None):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('''
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f'''
         INSERT INTO Receitas (descricao, valor, fonte, data_receita, observacoes)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES ({ph}, {ph}, {ph}, {ph}, {ph})
     ''', (descricao, valor, fonte, data_receita, observacoes))
     conn.commit()
     conn.close()
@@ -43,7 +46,9 @@ def criar_receita(descricao, valor, fonte, data_receita, observacoes=None):
 def obter_receita_por_id(receita_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM Receitas WHERE id = ?", (receita_id,))
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f"SELECT * FROM Receitas WHERE id = {ph}", (receita_id,))
     receita = cursor.fetchone()
     conn.close()
     return receita
@@ -51,10 +56,12 @@ def obter_receita_por_id(receita_id):
 def atualizar_receita(receita_id, descricao, valor, fonte, data_receita, observacoes=None):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('''
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f'''
         UPDATE Receitas 
-        SET descricao = ?, valor = ?, fonte = ?, data_receita = ?, observacoes = ?
-        WHERE id = ?
+        SET descricao = {ph}, valor = {ph}, fonte = {ph}, data_receita = {ph}, observacoes = {ph}
+        WHERE id = {ph}
     ''', (descricao, valor, fonte, data_receita, observacoes, receita_id))
     conn.commit()
     conn.close()
@@ -62,7 +69,9 @@ def atualizar_receita(receita_id, descricao, valor, fonte, data_receita, observa
 def deletar_receita(receita_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM Receitas WHERE id = ?", (receita_id,))
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f"DELETE FROM Receitas WHERE id = {ph}", (receita_id,))
     conn.commit()
     conn.close()
 
