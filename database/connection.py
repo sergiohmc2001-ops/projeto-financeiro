@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import socket
 from urllib.parse import urlparse
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -8,8 +9,20 @@ def get_db_connection():
     if DATABASE_URL:
         import psycopg2  # type: ignore
         import psycopg2.extras  # type: ignore
-        # Força a conexão com psycopg2 usando sslmode seguro
-        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        
+        parsed_url = urlparse(DATABASE_URL)
+        hostname = parsed_url.hostname
+        port = parsed_url.port or 5432
+        
+        # Força a resolução estrita para IPv4 (AF_INET) contornando o erro de rede do Render
+        try:
+            ipv4_address = socket.getaddrinfo(hostname, port, socket.AF_INET)[0][4][0]
+            # Substitui o domínio pelo IP IPv4 direto na string de conexão
+            safe_url = DATABASE_URL.replace(hostname, ipv4_address)
+        except Exception:
+            safe_url = DATABASE_URL
+
+        conn = psycopg2.connect(safe_url, sslmode='require')
         return conn
     else:
         BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -123,4 +136,4 @@ def init_db():
     cursor.close()
     conn.close()
 
-DATABASE_PATH = None
+__all__ = ["get_db_connection", "init_db"]
