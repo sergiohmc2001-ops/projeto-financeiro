@@ -140,3 +140,6 @@ def init_db():
     conn.commit()
     cursor.close()
     conn.close()
+
+# Compatibilidade para arquivos antigos que tentam importar DATABASE_PATH
+DATABASE_PATH = None
