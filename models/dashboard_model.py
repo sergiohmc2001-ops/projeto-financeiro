@@ -20,34 +20,34 @@ def obter_resumo_cards(mes=None, ano=None):
     if mes and ano:
         # Consultas Filtradas por Período
         total_receitas = conn.execute("""
-            SELECT COALESCE(SUM(valor), 0) FROM Receitas 
+            SELECT COALESCE(SUM(valor), 0) FROM receitas 
             WHERE strftime('%m', data_receita) = ? AND strftime('%Y', data_receita) = ?
         """, (mes_str, ano_str)).fetchone()[0]
 
         total_despesas = conn.execute("""
-            SELECT COALESCE(SUM(valor), 0) FROM Despesas 
+            SELECT COALESCE(SUM(valor), 0) FROM despesas 
             WHERE strftime('%m', data_despesa) = ? AND strftime('%Y', data_despesa) = ?
         """, (mes_str, ano_str)).fetchone()[0]
 
         total_faturas = conn.execute("""
-            SELECT COALESCE(SUM(valor), 0) FROM ComprasCartao 
+            SELECT COALESCE(SUM(valor), 0) FROM comprascartao 
             WHERE strftime('%m', data_compra) = ? AND strftime('%Y', data_compra) = ?
         """, (mes_str, ano_str)).fetchone()[0]
     else:
         # Fallback caso não venha mês/ano
-        total_receitas = conn.execute("SELECT COALESCE(SUM(valor), 0) FROM Receitas").fetchone()[0]
-        total_despesas = conn.execute("SELECT COALESCE(SUM(valor), 0) FROM Despesas").fetchone()[0]
-        total_faturas = conn.execute("SELECT COALESCE(SUM(valor), 0) FROM ComprasCartao").fetchone()[0]
+        total_receitas = conn.execute("SELECT COALESCE(SUM(valor), 0) FROM receitas").fetchone()[0]
+        total_despesas = conn.execute("SELECT COALESCE(SUM(valor), 0) FROM despesas").fetchone()[0]
+        total_faturas = conn.execute("SELECT COALESCE(SUM(valor), 0) FROM comprascartao").fetchone()[0]
 
     # Dados Globais (Cartões e Metas)
-    total_cartoes = conn.execute("SELECT COUNT(*) FROM Cartoes").fetchone()[0]
+    total_cartoes = conn.execute("SELECT COUNT(*) FROM cartoes").fetchone()[0]
 
     resumo_metas = conn.execute("""
         SELECT 
             COUNT(*), 
             COALESCE(SUM(valor_atual), 0),
             COALESCE(SUM(valor_alvo), 0) 
-        FROM Metas
+        FROM metas
     """).fetchone()
 
     qtd_metas = resumo_metas[0]
@@ -87,7 +87,7 @@ def obter_despesas_por_categoria(mes=None, ano=None):
         ano_str = str(ano)
         dados = conn.execute('''
             SELECT categoria, SUM(valor) as total
-            FROM Despesas
+            FROM despesas
             WHERE strftime('%m', data_despesa) = ? AND strftime('%Y', data_despesa) = ?
             GROUP BY categoria
             ORDER BY total DESC
@@ -95,7 +95,7 @@ def obter_despesas_por_categoria(mes=None, ano=None):
     else:
         dados = conn.execute('''
             SELECT categoria, SUM(valor) as total
-            FROM Despesas
+            FROM despesas
             GROUP BY categoria
             ORDER BY total DESC
         ''').fetchall()
@@ -117,7 +117,7 @@ def obter_despesas_por_mes(mes=None, ano=None):
     if ano:
         dados = conn.execute('''
             SELECT strftime('%Y-%m', data_despesa) as mes, SUM(valor) as total
-            FROM Despesas
+            FROM despesas
             WHERE strftime('%Y', data_despesa) <= ?
             GROUP BY mes
             ORDER BY mes ASC
@@ -126,7 +126,7 @@ def obter_despesas_por_mes(mes=None, ano=None):
     else:
         dados = conn.execute('''
             SELECT strftime('%Y-%m', data_despesa) as mes, SUM(valor) as total
-            FROM Despesas
+            FROM despesas
             GROUP BY mes
             ORDER BY mes ASC
             LIMIT 12
@@ -149,14 +149,14 @@ def obter_ultimas_despesas(limit=5, mes=None, ano=None):
         mes_str = f"{mes:02d}"
         ano_str = str(ano)
         despesas = conn.execute('''
-            SELECT * FROM Despesas
+            SELECT * FROM despesas
             WHERE strftime('%m', data_despesa) = ? AND strftime('%Y', data_despesa) = ?
             ORDER BY data_despesa DESC, id DESC
             LIMIT ?
         ''', (mes_str, ano_str, limit)).fetchall()
     else:
         despesas = conn.execute('''
-            SELECT * FROM Despesas
+            SELECT * FROM despesas
             ORDER BY data_despesa DESC, id DESC
             LIMIT ?
         ''', (limit,)).fetchall()
