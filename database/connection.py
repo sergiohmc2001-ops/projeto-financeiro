@@ -2,31 +2,21 @@ import os
 import sqlite3
 from urllib.parse import urlparse
 
-# Tenta pegar a URL do Supabase/PostgreSQL configurada nas variáveis de ambiente do Render
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_db_connection():
-    """Estabelece e retorna a conexão com o banco de dados.
-    Usa PostgreSQL (Supabase) se estiver no Render, ou SQLite se estiver local.
-    """
     if DATABASE_URL:
         try:
-            # Tenta usar o psycopg v3 primeiro (pacote recomendado)
-            import psycopg  # type: ignore
-            # Adiciona option para forçar resolução ou aceitar SSL padrão
-            conn = psycopg.connect(DATABASE_URL)
+            import psycopg2  # type: ignore
+            import psycopg2.extras  # type: ignore
+            # Força a conexão com psycopg2 usando sslmode
+            conn = psycopg2.connect(DATABASE_URL, sslmode='require')
             return conn
         except ImportError:
-            try:
-                # Fallback para psycopg2 se necessário
-                import psycopg2  # type: ignore
-                import psycopg2.extras  # type: ignore
-                conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-                return conn
-            except ImportError:
-                raise RuntimeError("Erro: Nenhum driver do Postgres (psycopg ou psycopg2) está instalado.")
+            import psycopg  # type: ignore
+            conn = psycopg.connect(DATABASE_URL)
+            return conn
     else:
-        # Conexão local com SQLite para testes na sua máquina
         BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         DATABASE_PATH = os.path.join(BASE_DIR, "database.db")
         conn = sqlite3.connect(DATABASE_PATH)
@@ -35,16 +25,12 @@ def get_db_connection():
         return conn
 
 def init_db():
-    """Cria as tabelas do sistema automaticamente caso não existam."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
     is_postgres = bool(DATABASE_URL)
-
-    # Ajuste de sintaxe para SERIAL (PostgreSQL) vs AUTOINCREMENT (SQLite)
     id_pk = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
 
-    # 0. Tabela de Usuários
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS usuarios (
             id {id_pk},
@@ -53,7 +39,6 @@ def init_db():
         )
     """)
 
-    # 1. Tabela de Despesas Gerais
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS despesas (
             id {id_pk},
@@ -68,7 +53,6 @@ def init_db():
         )
     """)
 
-    # 2. Tabela de Receitas / Ganhos
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS receitas (
             id {id_pk},
@@ -82,7 +66,6 @@ def init_db():
         )
     """)
 
-    # 3. Tabela de Cartões de Crédito
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS cartoes (
             id {id_pk},
@@ -97,7 +80,6 @@ def init_db():
         )
     """)
 
-    # 4. Tabela de Compras do Cartão
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS comprascartao (
             id {id_pk},
@@ -112,7 +94,6 @@ def init_db():
         )
     """)
 
-    # 5. Tabela de Metas Financeiras
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS metas (
             id {id_pk},
@@ -127,7 +108,6 @@ def init_db():
         )
     """)
 
-    # 6. Tabela de Transações Recorrentes / Fixas
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS transacoesrecorrentes (
             id {id_pk},
@@ -148,5 +128,4 @@ def init_db():
     cursor.close()
     conn.close()
 
-# Compatibilidade para arquivos antigos que tentam importar DATABASE_PATH
 DATABASE_PATH = None
