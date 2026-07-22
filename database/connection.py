@@ -11,18 +11,20 @@ def get_db_connection():
     """
     if DATABASE_URL:
         try:
-            import psycopg2  # type: ignore
-            import psycopg2.extras  # type: ignore
-            # Conexão com o PostgreSQL do Supabase
-            conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+            # Tenta usar o psycopg v3 primeiro (pacote recomendado)
+            import psycopg  # type: ignore
+            # Adiciona option para forçar resolução ou aceitar SSL padrão
+            conn = psycopg.connect(DATABASE_URL)
             return conn
         except ImportError:
             try:
-                import psycopg  # type: ignore
-                conn = psycopg.connect(DATABASE_URL)
+                # Fallback para psycopg2 se necessário
+                import psycopg2  # type: ignore
+                import psycopg2.extras  # type: ignore
+                conn = psycopg2.connect(DATABASE_URL, sslmode='require')
                 return conn
             except ImportError:
-                raise RuntimeError("Erro: Nenhum driver do Postgres (psycopg2 ou psycopg) está instalado.")
+                raise RuntimeError("Erro: Nenhum driver do Postgres (psycopg ou psycopg2) está instalado.")
     else:
         # Conexão local com SQLite para testes na sua máquina
         BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
