@@ -1,3 +1,5 @@
+import sys
+import traceback
 from flask import Flask, redirect, render_template, request, session, url_for
 from database.connection import init_db
 from models.recorrente_model import processar_recorrencias_do_mes
@@ -13,9 +15,14 @@ from routes.receitas_routes import receitas_bp
 app = Flask(__name__)
 app.secret_key = "chave_secreta_balancas_app"
 
-# Inicializa as tabelas do banco e processa as transações fixas do mês
-init_db()
-processar_recorrencias_do_mes()
+# Inicializa as tabelas do banco e processa as transações fixas com tratamento de erro visível
+try:
+    init_db()
+    processar_recorrencias_do_mes()
+except Exception as e:
+    print("ERRO CRITICO AO INICIAR O BANCO:", str(e), file=sys.stderr)
+    traceback.print_exc()
+    raise e
 
 # Registra os Blueprints (rotas)
 app.register_blueprint(auth_bp)
