@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Balanc${% endblock %}
+
+{% block content %}
+<!-- Cabeçalho com Filtro de Mês/Ano -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+    <h2 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2"></i>Dashboard Financeiro</h2>
+    
+    <!-- Formulário de Filtro por Período -->
+    <form method="GET" action="{{ url_for('dashboard.index') }}" class="d-flex align-items-center gap-2 bg-body-tertiary p-2 rounded shadow-sm border">
+        <label for="selectMes" class="visually-hidden">Mês</label>
+        <select name="mes" id="selectMes" class="form-select form-select-sm">
+            {% set meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'] %}
+            {% for m in range(1, 13) %}
+                <option value="{{ m }}" {% if m == mes_atual %}selected{% endif %}>{{ meses[m-1] }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="selectAno" class="visually-hidden">Ano</label>
+        <select name="ano" id="selectAno" class="form-select form-select-sm">
+            {% for a in range(ano_atual - 2, ano_atual + 3) %}
+                <option value="{{ a }}" {% if a == ano_atual %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+            <i class="bi bi-filter"></i> Filtrar
+        </button>
+    </form>
+</div>
+
+<!-- Principal: Saldo, Entradas e Saídas Totais -->
+<div class="row g-3 mb-4">
+    <!-- Saldo Disponível (Líquido) -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm {% if cards.saldo_atual >= 0 %}bg-primary{% else %}bg-danger{% endif %} text-white h-100">
+            <div class="card-body d-flex justify-content-between align-items-center p-3">
+                <div>
+                    <h6 class="text-uppercase mb-1 small fw-bold text-white-50">Saldo do Mês</h6>
+                    <h2 class="mb-0 fw-bold">R$ {{ "%.2f"|format(cards.saldo_atual)|replace('.', ',') }}</h2>
+                    <small class="text-white-50">(Ganhos − Total Saídas)</small>
+                </div>
+                <i class="bi bi-wallet2 fs-1 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Ganhos / Receitas -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm bg-success text-white h-100">
+            <div class="card-body d-flex justify-content-between align-items-center p-3">
+                <div>
+                    <h6 class="text-uppercase mb-1 small fw-bold text-white-50">Total de Ganhos</h6>
+                    <h2 class="mb-0 fw-bold">R$ {{ "%.2f"|format(cards.total_receitas)|replace('.', ',') }}</h2>
+                    <small class="text-white-50">Entradas do período</small>
+                </div>
+                <i class="bi bi-arrow-up-circle fs-1 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total de Saídas (Despesas + Faturas) -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm bg-danger text-white h-100">
+            <div class="card-body d-flex justify-content-between align-items-center p-3">
+                <div>
+                    <h6 class="text-uppercase mb-1 small fw-bold text-white-50">Total de Saídas</h6>
+                    <h2 class="mb-0 fw-bold">R$ {{ "%.2f"|format(cards.total_saidas)|replace('.', ',') }}</h2>
+                    <small class="text-white-50">Despesas + Cartões</small>
+                </div>
+                <i class="bi bi-arrow-down-circle fs-1 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Indicadores Secundários -->
+<div class="row g-3 mb-4">
+    <!-- Despesas Gerais -->
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-uppercase text-muted mb-1 small fw-bold">Despesas Gerais</h6>
+                    <h4 class="mb-0 fw-bold text-danger">R$ {{ "%.2f"|format(cards.total_despesas)|replace('.', ',') }}</h4>
+                </div>
+                <i class="bi bi-cash-stack fs-2 text-danger opacity-75"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Faturas Cartões -->
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-uppercase text-muted mb-1 small fw-bold">Faturas Cartões</h6>
+                    <h4 class="mb-0 fw-bold text-warning">R$ {{ "%.2f"|format(cards.total_faturas)|replace('.', ',') }}</h4>
+                </div>
+                <i class="bi bi-credit-card fs-2 text-warning opacity-75"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cartões Cadastrados -->
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-uppercase text-muted mb-1 small fw-bold">Cartões Cadastrados</h6>
+                    <h4 class="mb-0 fw-bold text-info">{{ cards.total_cartoes }}</h4>
+                </div>
+                <i class="bi bi-card-checklist fs-2 text-info opacity-75"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Patrimônio em Metas/Objetos -->
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-uppercase text-muted mb-1 small fw-bold">Patrimônio ({{ cards.qtd_objetos }} bens)</h6>
+                    <h4 class="mb-0 fw-bold text-success">R$ {{ "%.2f"|format(cards.valor_total_objetos)|replace('.', ',') }}</h4>
+                </div>
+                <i class="bi bi-box-seam fs-2 text-success opacity-75"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header fw-bold">
+                <i class="bi bi-pie-chart-fill me-2"></i>Despesas por Categoria
+            </div>
+            <div class="card-body d-flex justify-content-center align-items-center">
+                <div style="width: 100%; max-width: 350px;">
+                    <canvas id="graficoCategorias"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header fw-bold">
+                <i class="bi bi-bar-chart-line-fill me-2"></i>Evolução Mensal de Gastos
+            </div>
+            <div class="card-body d-flex justify-content-center align-items-center">
+                <canvas id="graficoMeses"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Últimas Despesas -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clock-history me-2"></i>Despesas do Período</span>
+        <a href="{{ url_for('despesas.index') }}" class="btn btn-sm btn-outline-primary">Ver todas</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Descrição</th>
+                        <th>Categoria</th>
+                        <th>Pagamento</th>
+                        <th class="text-end">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for despesa in ultimas_despesas %}
+                    <tr>
+                        <td>{{ despesa.data_despesa }}</td>
+                        <td class="fw-bold">{{ despesa.descricao }}</td>
+                        <td><span class="badge bg-secondary">{{ despesa.categoria }}</span></td>
+                        <td>{{ despesa.forma_pagamento }}</td>
+                        <td class="text-end text-danger fw-bold">R$ {{ "%.2f"|format(despesa.valor)|replace('.', ',') }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">Nenhuma despesa lançada neste período.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Script com suporte dinâmico ao Modo Escuro e Filtro de Período -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let chartCategoriasInstance = null;
+    let chartMesesInstance = null;
+
+    // Retorna a cor do texto do gráfico de acordo com o tema atual
+    function getTextColor() {
+        return document.documentElement.getAttribute('data-bs-theme') === 'dark' ? '#f8f9fa' : '#495057';
+    }
+
+    // Retorna a cor das linhas de grade do gráfico de acordo com o tema atual
+    function getGridColor() {
+        return document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    }
+
+    // Renderiza o gráfico de Categorias
+    function renderGraficoCategorias(data) {
+        const ctx = document.getElementById('graficoCategorias').getContext('2d');
+        const textColor = getTextColor();
+
+        if (chartCategoriasInstance) {
+            chartCategoriasInstance.destroy();
+        }
+
+        chartCategoriasInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    data: data.valores,
+                    backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#0dcaf0', '#6c757d', '#6610f2']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: { color: textColor }
+                    }
+                }
+            }
+        });
+    }
+
+    // Renderiza o gráfico de Meses
+    function renderGraficoMeses(data) {
+        const ctx = document.getElementById('graficoMeses').getContext('2d');
+        const textColor = getTextColor();
+        const gridColor = getGridColor();
+
+        if (chartMesesInstance) {
+            chartMesesInstance.destroy();
+        }
+
+        chartMesesInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'Total Gasto (R$)',
+                    data: data.valores,
+                    backgroundColor: '#0d6efd'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: { color: textColor }
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        ticks: { color: textColor },
+                        grid: { color: gridColor }
+                    },
+                    x: {
+                        ticks: { color: textColor },
+                        grid: { color: gridColor }
+                    }
+                }
+            }
+        });
+    }
+
+    // Busca dados via API repassando o Mês e Ano selecionados
+    function carregarGraficos() {
+        const mes = document.getElementById('selectMes').value;
+        const ano = document.getElementById('selectAno').value;
+
+        fetch(`{{ url_for('dashboard.api_grafico_categorias') }}?mes=${mes}&ano=${ano}`)
+            .then(res => res.json())
+            .then(data => renderGraficoCategorias(data));
+
+        fetch(`{{ url_for('dashboard.api_grafico_meses') }}?mes=${mes}&ano=${ano}`)
+            .then(res => res.json())
+            .then(data => renderGraficoMeses(data));
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        carregarGraficos();
+
+        // Escuta o clique no botão do tema para recarregar as cores do gráfico
+        const toggleBtn = document.getElementById('btnThemeToggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                setTimeout(carregarGraficos, 50);
+            });
+        }
+    });
+</script>
+{% endblock %}

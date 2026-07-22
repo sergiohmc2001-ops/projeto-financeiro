@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+
+{% block title %}Metas Financeiras - Balanc$ {% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold text-secondary"><i class="bi bi-bullseye me-2"></i>Metas Financeiras</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovaMeta">
+        <i class="bi bi-plus-circle me-1"></i> Nova Meta
+    </button>
+</div>
+
+<!-- Filtros e Busca -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('metas.index') }}" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label fw-bold small text-secondary">Categoria</label>
+                <select name="categoria" class="form-select">
+                    <option value="">Todas as categorias</option>
+                    <option value="Viagem" {{ 'selected' if cat_selecionada == 'Viagem' else '' }}>Viagem</option>
+                    <option value="Reserva de Emergência" {{ 'selected' if cat_selecionada == 'Reserva de Emergência' else '' }}>Reserva de Emergência</option>
+                    <option value="Veículo" {{ 'selected' if cat_selecionada == 'Veículo' else '' }}>Veículo</option>
+                    <option value="Imóvel" {{ 'selected' if cat_selecionada == 'Imóvel' else '' }}>Imóvel</option>
+                    <option value="Educação" {{ 'selected' if cat_selecionada == 'Educação' else '' }}>Educação</option>
+                    <option value="Outros" {{ 'selected' if cat_selecionada == 'Outros' else '' }}>Outros</option>
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label fw-bold small text-secondary">Buscar</label>
+                <input type="text" name="busca" class="form-control" placeholder="Nome da meta..." value="{{ busca_selecionada or '' }}">
+            </div>
+            <div class="col-md-3 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-secondary flex-fill"><i class="bi bi-filter me-1"></i> Filtrar</button>
+                <a href="{{ url_for('metas.index') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Card de Resumo de Metas -->
+<div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-4">
+    <span class="fw-bold"><i class="bi bi-piggy-bank me-2"></i>Total Guardado para Metas:</span>
+    <h4 class="mb-0 fw-bold text-success">R$ {{ "%.2f"|format(valor_total_guardado or 0.0) }} / R$ {{ "%.2f"|format(valor_total_alvo or 0.0) }}</h4>
+</div>
+
+<!-- Tabela de Metas -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nome da Meta</th>
+                        <th>Categoria</th>
+                        <th>Progresso</th>
+                        <th>Data Limite</th>
+                        <th class="text-end">Guardado</th>
+                        <th class="text-end">Meta Alvo</th>
+                        <th class="text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for meta in metas %}
+                    {% set percentual = ((meta.valor_atual / meta.valor_alvo) * 100) if meta.valor_alvo > 0 else 0 %}
+                    {% set progresso_largura = percentual if percentual <= 100 else 100 %}
+                    <tr>
+                        <td class="fw-bold">{{ meta.nome }}</td>
+                        <td><span class="badge bg-secondary">{{ meta.categoria or 'Geral' }}</span></td>
+                        <td style="min-width: 180px;">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-fill" style="height: 10px;">
+                                    <div class="progress-bar {{ 'bg-success' if percentual >= 100 else 'bg-primary' }}" 
+                                         role="progressbar" 
+                                         style="width: var(--largura-progresso, 0%);"
+                                         data-largura="{{ progresso_largura }}"
+                                         onload="this.style.setProperty('--largura-progresso', this.getAttribute('data-largura') + '%')"
+                                         script-style="width: {{ progresso_largura }}%">
+                                    </div>
+                                </div>
+                                <span class="small fw-bold text-muted">{{ "%.0f"|format(percentual) }}%</span>
+                            </div>
+                        </td>
+                        <td>{{ meta.data_limite or '-' }}</td>
+                        <td class="text-end text-success fw-bold">R$ {{ "%.2f"|format(meta.valor_atual or 0.0) }}</td>
+                        <td class="text-end fw-bold">R$ {{ "%.2f"|format(meta.valor_alvo or 0.0) }}</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-warning me-1" data-bs-toggle="modal" data-bs-target="#modalEditarMeta{{ meta.id }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form action="{{ url_for('metas.excluir', id=meta.id) }}" method="post" class="d-inline" onsubmit="return confirm('Deseja remover esta meta?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">Nenhuma meta cadastrada.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modais de Edição -->
+{% for meta in metas %}
+<div class="modal fade" id="modalEditarMeta{{ meta.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('metas.editar', id=meta.id) }}" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Editar Meta</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nome da Meta</label>
+                        <input type="text" name="nome" class="form-control" value="{{ meta.nome }}" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Categoria</label>
+                            <select name="categoria" class="form-select">
+                                <option value="Viagem" {{ 'selected' if meta.categoria == 'Viagem' else '' }}>Viagem</option>
+                                <option value="Reserva de Emergência" {{ 'selected' if meta.categoria == 'Reserva de Emergência' else '' }}>Reserva de Emergência</option>
+                                <option value="Veículo" {{ 'selected' if meta.categoria == 'Veículo' else '' }}>Veículo</option>
+                                <option value="Imóvel" {{ 'selected' if meta.categoria == 'Imóvel' else '' }}>Imóvel</option>
+                                <option value="Educação" {{ 'selected' if meta.categoria == 'Educação' else '' }}>Educação</option>
+                                <option value="Outros" {{ 'selected' if meta.categoria == 'Outros' else '' }}>Outros</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Data Limite</label>
+                            <input type="date" name="data_limite" class="form-control" value="{{ meta.data_limite or '' }}">
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Valor Já Guardado (R$)</label>
+                            <input type="number" step="0.01" name="valor_atual" class="form-control" value="{{ meta.valor_atual or 0.0 }}" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Valor Alvo (R$)</label>
+                            <input type="number" step="0.01" name="valor_alvo" class="form-control" value="{{ meta.valor_alvo or 0.0 }}" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal Nova Meta -->
+<div class="modal fade" id="modalNovaMeta" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('metas.nova') }}" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Cadastrar Nova Meta</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nome da Meta</label>
+                        <input type="text" name="nome" class="form-control" placeholder="Ex: Viagem de Férias" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Categoria</label>
+                            <select name="categoria" class="form-select">
+                                <option value="Viagem">Viagem</option>
+                                <option value="Reserva de Emergência">Reserva de Emergência</option>
+                                <option value="Veículo">Veículo</option>
+                                <option value="Imóvel">Imóvel</option>
+                                <option value="Educação">Educação</option>
+                                <option value="Outros" selected>Outros</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Data Limite</label>
+                            <input type="date" name="data_limite" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Valor Já Guardado (R$)</label>
+                            <input type="number" step="0.01" name="valor_atual" class="form-control" placeholder="0.00" value="0.00" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Valor Alvo Total (R$)</label>
+                            <input type="number" step="0.01" name="valor_alvo" class="form-control" placeholder="1000.00" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Cadastrar Meta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    document.querySelectorAll('.progress-bar[data-largura]').forEach(el => {
+        el.style.width = el.getAttribute('data-largura') + '%';
+    });
+</script>
+{% endblock %}

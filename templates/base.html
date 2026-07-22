@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Balanc${% endblock %}</title>
+    
+    <!-- Script para carregar o tema imediatamente (Evita 'piscar' a tela em branco) -->
+    <script>
+        (function () {
+            const getStoredTheme = () => localStorage.getItem('theme');
+            const getPreferredTheme = () => {
+                const storedTheme = getStoredTheme();
+                if (storedTheme) {
+                    return storedTheme;
+                }
+                return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            };
+            document.documentElement.setAttribute('data-bs-theme', getPreferredTheme());
+        })();
+    </script>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <!-- Estilo Customizado -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- Navbar / Cabeçalho -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm mb-4">
+        <div class="container">
+            <a class="navbar-brand fw-bold fs-3" href="{{ url_for('dashboard.index') }}">
+                <i class="bi bi-wallet2 me-2"></i>Balanc$
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto fs-6 align-items-lg-center">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard.index') }}">
+                            <i class="bi bi-speedometer2 me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('receitas.index') }}">
+                            <i class="bi bi-arrow-up-right-circle me-1"></i> Receitas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('despesas.index') }}">
+                            <i class="bi bi-cash-stack me-1"></i> Despesas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('cartoes.index') }}">
+                            <i class="bi bi-credit-card me-1"></i> Cartões
+                        </a>
+                    </li>
+                    <!-- Novo Link para Transações Fixas / Recorrentes -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('recorrente.gerenciar_recorrentes') }}">
+                            <i class="bi bi-arrow-repeat me-1"></i> Fixas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('metas.index') }}">
+                            <i class="bi bi-trophy me-1"></i> Metas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('configuracoes.index') }}">
+                            <i class="bi bi-gear me-1"></i> Configurações
+                        </a>
+                    </li>
+                    <!-- Botão Alternador de Modo Escuro -->
+                    <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
+                        <button class="btn btn-outline-light border-0 btn-sm" id="btnThemeToggle" title="Alternar Modo Escuro/Claro">
+                            <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Conteúdo Principal Dinâmico -->
+    <div class="container mb-5">
+        <!-- Mensagens de Alerta (Flash) -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Bloco Onde Outros Templates Injetam Conteúdo -->
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Bootstrap 5 JavaScript Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Script de Lógica do Alternador de Tema -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const getStoredTheme = () => localStorage.getItem('theme');
+            const setStoredTheme = theme => localStorage.setItem('theme', theme);
+
+            const getPreferredTheme = () => {
+                const storedTheme = getStoredTheme();
+                if (storedTheme) {
+                    return storedTheme;
+                }
+                return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            };
+
+            const updateIcon = (theme) => {
+                const icon = document.getElementById('themeIcon');
+                if (icon) {
+                    if (theme === 'dark') {
+                        icon.className = 'bi bi-sun-fill text-warning';
+                    } else {
+                        icon.className = 'bi bi-moon-stars-fill text-light';
+                    }
+                }
+            };
+
+            const setTheme = theme => {
+                document.documentElement.setAttribute('data-bs-theme', theme);
+                updateIcon(theme);
+            };
+
+            // Define o ícone inicial correto
+            updateIcon(document.documentElement.getAttribute('data-bs-theme') || getPreferredTheme());
+
+            // Listener para o botão
+            const toggleBtn = document.getElementById('btnThemeToggle');
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', () => {
+                    const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                    setStoredTheme(newTheme);
+                    setTheme(newTheme);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

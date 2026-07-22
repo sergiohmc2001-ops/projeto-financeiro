@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}Ganhos e Receitas - Balanc${% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold text-secondary"><i class="bi bi-wallet2 me-2 text-success"></i>Gestão de Ganhos / Receitas</h2>
+        <p class="text-muted mb-0">Registre e controle a origem de todas as suas entradas financeiras.</p>
+    </div>
+    <button class="btn btn-success btn-lg shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalNovaReceita">
+        <i class="bi bi-plus-circle me-2"></i>Nova Receita
+    </button>
+</div>
+
+<!-- Card de Resumo das Receitas -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm bg-success text-white">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h6 class="text-white-50 text-uppercase fw-bold mb-1">Total de Ganhos Registrados</h6>
+                        <h2 class="display-6 fw-bold mb-0">R$ {{ "%.2f"|format(total_receitas)|replace('.', ',') }}</h2>
+                    </div>
+                    <i class="bi bi-arrow-up-right-circle fs-1 text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros de Busca -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3">
+        <form method="GET" action="{{ url_for('receitas.index') }}" class="row g-3">
+            <div class="col-md-3">
+                <input type="text" name="busca" class="form-control" placeholder="Buscar por descrição..." value="{{ busca_selecionada }}">
+            </div>
+            <div class="col-md-3">
+                <select name="fonte" class="form-select">
+                    <option value="">Todas as Fontes</option>
+                    <option value="Salário / Emprego" {% if fonte_selecionada == 'Salário / Emprego' %}selected{% endif %}>Salário / Emprego</option>
+                    <option value="Freelance / Serviços" {% if fonte_selecionada == 'Freelance / Serviços' %}selected{% endif %}>Freelance / Serviços</option>
+                    <option value="Investimentos" {% if fonte_selecionada == 'Investimentos' %}selected{% endif %}>Investimentos</option>
+                    <option value="Vendas" {% if fonte_selecionada == 'Vendas' %}selected{% endif %}>Vendas</option>
+                    <option value="Presente / Reembolso" {% if fonte_selecionada == 'Presente / Reembolso' %}selected{% endif %}>Presente / Reembolso</option>
+                    <option value="Outros" {% if fonte_selecionada == 'Outros' %}selected{% endif %}>Outros</option>
+                </select>
+            </div>
+            <!-- Novos Campos de Filtro por Data -->
+            <div class="col-md-2">
+                <input type="date" name="data_inicio" class="form-control" title="Data Inicial" value="{{ data_inicio_selecionada or '' }}">
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="data_fim" class="form-control" title="Data Final" value="{{ data_fim_selecionada or '' }}">
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-secondary w-100"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+                <a href="{{ url_for('receitas.index') }}" class="btn btn-outline-secondary" title="Limpar Filtros"><i class="bi bi-x-circle"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabela de Receitas -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Descrição</th>
+                        <th>Fonte / Origem</th>
+                        <th>Data</th>
+                        <th>Valor</th>
+                        <th class="text-end pe-4">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if receitas %}
+                        {% for r in receitas %}
+                        <tr>
+                            <td class="ps-4 fw-semibold">{{ r.descricao }}</td>
+                            <td><span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3">{{ r.fonte }}</span></td>
+                            <td>{{ r.data_receita }}</td>
+                            <td class="fw-bold text-success">R$ {{ "%.2f"|format(r.valor)|replace('.', ',') }}</td>
+                            <td class="text-end pe-4">
+                                <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#modalEditarReceita{{ r.id }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalExcluirReceita{{ r.id }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Modal Editar -->
+                        <div class="modal fade" id="modalEditarReceita{{ r.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title fw-bold">Editar Receita</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form action="{{ url_for('receitas.editar', id=r.id) }}" method="POST">
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Descrição</label>
+                                                <input type="text" name="descricao" class="form-control" value="{{ r.descricao }}" required>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Valor (R$)</label>
+                                                    <input type="number" step="0.01" name="valor" class="form-control" value="{{ r.valor }}" required>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Data</label>
+                                                    <input type="date" name="data_receita" class="form-control" value="{{ r.data_receita }}" required>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Fonte / Origem</label>
+                                                <select name="fonte" class="form-select" required>
+                                                    <option value="Salário / Emprego" {% if r.fonte == 'Salário / Emprego' %}selected{% endif %}>Salário / Emprego</option>
+                                                    <option value="Freelance / Serviços" {% if r.fonte == 'Freelance / Serviços' %}selected{% endif %}>Freelance / Serviços</option>
+                                                    <option value="Investimentos" {% if r.fonte == 'Investimentos' %}selected{% endif %}>Investimentos</option>
+                                                    <option value="Vendas" {% if r.fonte == 'Vendas' %}selected{% endif %}>Vendas</option>
+                                                    <option value="Presente / Reembolso" {% if r.fonte == 'Presente / Reembolso' %}selected{% endif %}>Presente / Reembolso</option>
+                                                    <option value="Outros" {% if r.fonte == 'Outros' %}selected{% endif %}>Outros</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Observações</label>
+                                                <textarea name="observacoes" class="form-control" rows="2">{{ r.observacoes or '' }}</textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <button type="submit" class="btn btn-success">Salvar Alterações</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Modal Excluir -->
+                        <div class="modal fade" id="modalExcluirReceita{{ r.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title fw-bold text-danger">Excluir Receita</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        Tem certeza que deseja excluir a receita <strong>"{{ r.descricao }}"</strong> no valor de <strong>R$ {{ "%.2f"|format(r.valor)|replace('.', ',') }}</strong>?
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                        <form action="{{ url_for('receitas.excluir', id=r.id) }}" method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-danger">Confirmar Exclusão</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">Nenhuma receita cadastrada ou encontrada.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nova Receita -->
+<div class="modal fade" id="modalNovaReceita" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle text-success me-2"></i>Cadastrar Nova Receita</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('receitas.nova') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <input type="text" name="descricao" class="form-control" placeholder="Ex: Salário Mensal, Freela Web..." required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Valor (R$)</label>
+                            <input type="number" step="0.01" name="valor" class="form-control" placeholder="0,00" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Data</label>
+                            <input type="date" name="data_receita" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fonte / Origem</label>
+                        <select name="fonte" class="form-select" required>
+                            <option value="" selected disabled>Selecione a fonte...</option>
+                            <option value="Salário / Emprego">Salário / Emprego</option>
+                            <option value="Freelance / Serviços">Freelance / Serviços</option>
+                            <option value="Investimentos">Investimentos</option>
+                            <option value="Vendas">Vendas</option>
+                            <option value="Presente / Reembolso">Presente / Reembolso</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Observações (opcional)</label>
+                        <textarea name="observacoes" class="form-control" rows="2" placeholder="Detalhes adicionais..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success fw-semibold">Cadastrar Receita</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Configurações e Backup - Balanc${% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold text-secondary"><i class="bi bi-gear me-2"></i>Configurações do Sistema</h2>
+    <p class="text-muted">Gerencie os dados do seu sistema, realize backups de segurança ou restaure dados anteriores.</p>
+</div>
+
+<div class="row g-4">
+    <!-- Card Exportar / Backup -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center mb-3 text-primary">
+                        <i class="bi bi-download fs-2 me-3"></i>
+                        <h4 class="fw-bold mb-0">Exportar Backup</h4>
+                    </div>
+                    <p class="text-secondary">
+                        Faça o download de uma cópia completa do seu banco de dados em formato `.db`. 
+                        Guarde este arquivo em um local seguro (pen drive, nuvem) para evitar perda de dados.
+                    </p>
+                </div>
+                <div class="mt-4">
+                    <a href="{{ url_for('configuracoes.fazer_backup') }}" class="btn btn-primary btn-lg w-100">
+                        <i class="bi bi-file-earmark-arrow-down me-2"></i>Baixar Arquivo de Backup
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Importar / Restauração -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center mb-3 text-warning">
+                        <i class="bi bi-upload fs-2 me-3"></i>
+                        <h4 class="fw-bold mb-0">Restaurar Backup</h4>
+                    </div>
+                    <p class="text-secondary">
+                        Selecione um arquivo de banco de dados (`.db`) gerado anteriormente para restaurar as suas informações.
+                    </p>
+                    <div class="alert alert-warning border-0 small mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        <strong>Atenção:</strong> A restauração irá substituir completamente o banco de dados atual pelo arquivo enviado.
+                    </div>
+                </div>
+
+                <form action="{{ url_for('configuracoes.restaurar_backup') }}" method="POST" enctype="multipart/form-data" class="mt-2" onsubmit="return confirm('Deseja realmente restaurar os dados deste arquivo? Isso substituirá seus dados atuais.');">
+                    <div class="mb-3">
+                        <input class="form-control" type="file" name="arquivo_db" accept=".db" required>
+                    </div>
+                    <button type="submit" class="btn btn-warning text-dark btn-lg w-100 fw-bold">
+                        <i class="bi bi-arrow-counterclockwise me-2"></i>Restaurar Dados
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
