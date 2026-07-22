@@ -10,12 +10,14 @@ def get_db_connection():
     Usa PostgreSQL (Supabase) se estiver no Render, ou SQLite se estiver local.
     """
     if DATABASE_URL:
-        import psycopg2
-        import psycopg2.extras
-        # Conexão com o PostgreSQL do Supabase
-        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        # Garante que as consultas retornem dicionários (similar ao sqlite3.Row)
-        return conn
+        try:
+            import psycopg2  # type: ignore
+            import psycopg2.extras  # type: ignore
+            # Conexão com o PostgreSQL do Supabase
+            conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+            return conn
+        except ImportError:
+            raise RuntimeError("O pacote psycopg2 não está instalado localmente, mas a DATABASE_URL foi detectada.")
     else:
         # Conexão local com SQLite para testes na sua máquina
         BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
