@@ -6,16 +6,11 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_db_connection():
     if DATABASE_URL:
-        try:
-            import psycopg2  # type: ignore
-            import psycopg2.extras  # type: ignore
-            # Força a conexão com psycopg2 usando sslmode
-            conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-            return conn
-        except ImportError:
-            import psycopg  # type: ignore
-            conn = psycopg.connect(DATABASE_URL)
-            return conn
+        import psycopg2  # type: ignore
+        import psycopg2.extras  # type: ignore
+        # Força a conexão com psycopg2 usando sslmode seguro
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        return conn
     else:
         BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         DATABASE_PATH = os.path.join(BASE_DIR, "database.db")
