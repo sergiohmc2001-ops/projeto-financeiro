@@ -3,6 +3,10 @@ import sqlite3
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# Caminho de fallback do SQLite caso a URL do banco não esteja definida
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATABASE_PATH = os.path.join(BASE_DIR, "database.db")
+
 def get_db_connection():
     if DATABASE_URL:
         import psycopg2  # type: ignore
@@ -10,8 +14,6 @@ def get_db_connection():
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         return conn
     else:
-        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        DATABASE_PATH = os.path.join(BASE_DIR, "database.db")
         conn = sqlite3.connect(DATABASE_PATH)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON;")
@@ -121,4 +123,4 @@ def init_db():
     cursor.close()
     conn.close()
 
-__all__ = ["get_db_connection", "init_db"]
+__all__ = ["get_db_connection", "init_db", "DATABASE_PATH"]
