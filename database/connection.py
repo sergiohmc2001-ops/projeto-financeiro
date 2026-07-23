@@ -12,6 +12,8 @@ def get_db_connection():
         import psycopg2  # type: ignore
         import psycopg2.extras  # type: ignore
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        # Configura para retornar os resultados como dicionário (equivalente ao Row do sqlite3)
+        conn.cursor_factory = psycopg2.extras.DictCursor
         return conn
     else:
         conn = sqlite3.connect(DATABASE_PATH)
