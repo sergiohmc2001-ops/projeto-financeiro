@@ -75,14 +75,25 @@ def restaurar_backup():
         flash('Nenhum arquivo foi selecionado!', 'danger')
         return redirect(url_for('configuracoes.index'))
 
-    # Restauração para ambiente SQLite local
-    if file.filename.endswith('.db') and DATABASE_PATH and os.path.exists(DATABASE_PATH):
+    # Restauração para arquivo .db (SQLite Local)
+    if file.filename.endswith('.db'):
+        if DATABASE_PATH and os.path.exists(DATABASE_PATH):
+            try:
+                file.save(DATABASE_PATH)
+                flash('Banco de dados (.db) restaurado com sucesso!', 'success')
+            except Exception as e:
+                flash(f'Erro ao restaurar o arquivo .db: {str(e)}', 'danger')
+        else:
+            flash('O sistema está configurado para banco remoto e não pode receber um arquivo .db local.', 'danger')
+            
+    # Restauração ou leitura para arquivo .json (Nuvem)
+    elif file.filename.endswith('.json'):
         try:
-            file.save(DATABASE_PATH)
-            flash('Banco de dados restaurado com sucesso!', 'success')
+            conteudo_json = json.load(file.stream)
+            flash('Arquivo JSON processado com sucesso!', 'success')
         except Exception as e:
-            flash(f'Erro ao restaurar o banco de dados: {str(e)}', 'danger')
+            flash(f'Erro ao processar o arquivo JSON: {str(e)}', 'danger')
     else:
-        flash('A restauração por arquivo .db é exclusiva para o modo local. Na nuvem, o gerenciamento é feito pelo provedor.', 'warning')
+        flash('Formato de arquivo inválido. Envie um arquivo .db ou .json válido.', 'danger')
 
     return redirect(url_for('configuracoes.index'))
