@@ -95,6 +95,7 @@ def init_db():
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS comprascartao (
             id {id_pk},
+            user_id INTEGER,
             cartao_id INTEGER NOT NULL,
             descricao TEXT NOT NULL,
             valor REAL NOT NULL,
@@ -102,9 +103,23 @@ def init_db():
             parcelas INTEGER NOT NULL DEFAULT 1,
             parcela_atual INTEGER NOT NULL DEFAULT 1,
             categoria_id INTEGER,
+            FOREIGN KEY (user_id) REFERENCES usuarios (id) ON DELETE CASCADE,
             FOREIGN KEY (cartao_id) REFERENCES cartoes (id) ON DELETE CASCADE
         )
     """)
+
+    # Garante que a coluna 'user_id' exista na tabela comprascartao caso ela já tenha sido criada antes sem ela
+    try:
+        if is_postgres:
+            cursor.execute("ALTER TABLE comprascartao ADD COLUMN IF NOT EXISTS user_id INTEGER;")
+        else:
+            cursor.execute("PRAGMA table_info(comprascartao);")
+            colunas_compras = [coluna[1] for coluna in cursor.fetchall()]
+            if 'user_id' not in colunas_compras:
+                cursor.execute("ALTER TABLE comprascartao ADD COLUMN user_id INTEGER;")
+    except Exception:
+        if is_postgres:
+            conn.rollback()
 
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS metas (

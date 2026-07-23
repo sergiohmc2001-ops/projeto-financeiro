@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models.cartao_model import (
     listar_cartoes,
     obter_cartao_por_id,
@@ -20,6 +20,10 @@ cartoes_bp = Blueprint('cartoes', __name__)
 
 @cartoes_bp.route('/cartoes')
 def index():
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
     busca = request.args.get('busca')
     
     # Captura mês e ano selecionados ou define o mês/ano atual como padrão
@@ -27,17 +31,18 @@ def index():
     mes = request.args.get('mes', type=int, default=hoje.month)
     ano = request.args.get('ano', type=int, default=hoje.year)
 
-    cartoes = listar_cartoes(busca=busca)
+    cartoes = listar_cartoes(user_id=user_id, busca=busca)
     
     cartao_selecionado_id = request.args.get('cartao_id', type=int)
     cartao_detalhe = None
     compras = []
 
     if cartao_selecionado_id:
-        cartao_detalhe = obter_cartao_por_id(cartao_selecionado_id)
+        cartao_detalhe = obter_cartao_por_id(cartao_selecionado_id, user_id=user_id)
         if cartao_detalhe:
             compras = listar_compras_cartao(
                 cartao_selecionado_id, 
+                user_id=user_id,
                 busca=busca, 
                 mes=mes, 
                 ano=ano
@@ -59,6 +64,10 @@ def index():
 
 @cartoes_bp.route('/cartoes/novo', methods=['POST'])
 def novo_cartao():
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
     nome = request.form.get('nome')
     banco = request.form.get('banco')
     bandeira = request.form.get('bandeira')
@@ -71,12 +80,16 @@ def novo_cartao():
     dia_vencimento = int(request.form.get('dia_vencimento') or 1)
     cor = request.form.get('cor', '#1f2937')
 
-    criar_cartao(nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
+    criar_cartao(user_id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
     flash('Cartão cadastrado com sucesso!', 'success')
     return redirect(url_for('cartoes.index'))
 
 @cartoes_bp.route('/cartoes/editar/<int:id>', methods=['POST'])
 def editar_cartao(id):
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
     nome = request.form.get('nome')
     banco = request.form.get('banco')
     bandeira = request.form.get('bandeira')
@@ -88,13 +101,17 @@ def editar_cartao(id):
     dia_vencimento = int(request.form.get('dia_vencimento') or 1)
     cor = request.form.get('cor', '#1f2937')
 
-    atualizar_cartao(id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
+    atualizar_cartao(id, user_id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
     flash('Cartão atualizado com sucesso!', 'success')
     return redirect(url_for('cartoes.index'))
 
 @cartoes_bp.route('/cartoes/excluir/<int:id>', methods=['POST'])
 def excluir_cartao_route(id):
-    excluir_cartao(id)
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
+    excluir_cartao(id, user_id=user_id)
     flash('Cartão e suas compras associadas foram excluídos!', 'success')
     return redirect(url_for('cartoes.index'))
 
@@ -102,6 +119,10 @@ def excluir_cartao_route(id):
 
 @cartoes_bp.route('/cartoes/<int:cartao_id>/compra/nova', methods=['POST'])
 def nova_compra(cartao_id):
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
     descricao = request.form.get('descricao')
     
     valor_str = request.form.get('valor')
@@ -117,6 +138,7 @@ def nova_compra(cartao_id):
     ano = request.form.get('ano')
 
     criar_compra_cartao(
+        user_id=user_id,
         cartao_id=cartao_id, 
         descricao=descricao, 
         valor_total=valor, 
@@ -130,6 +152,10 @@ def nova_compra(cartao_id):
 
 @cartoes_bp.route('/cartoes/compra/editar/<int:id>', methods=['POST'])
 def editar_compra(id):
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
     cartao_id = request.form.get('cartao_id', type=int)
     descricao = request.form.get('descricao')
     
@@ -148,6 +174,7 @@ def editar_compra(id):
 
     atualizar_compra_cartao(
         compra_id=id, 
+        user_id=user_id,
         descricao=descricao, 
         valor=valor, 
         data_compra=data_compra, 
@@ -161,12 +188,16 @@ def editar_compra(id):
 
 @cartoes_bp.route('/cartoes/compra/excluir/<int:id>', methods=['POST'])
 def excluir_compra(id):
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
     # Captura os parâmetros enviados via query string na URL de exclusão
     cartao_id = request.args.get('cartao_id', type=int)
     mes = request.args.get('mes', type=int)
     ano = request.args.get('ano', type=int)
 
-    excluir_compra_cartao(id)
+    excluir_compra_cartao(id, user_id=user_id)
     flash('Compra removida!', 'success')
     
     # Redireciona de volta para a fatura do cartão mantendo o mês e ano visualizados

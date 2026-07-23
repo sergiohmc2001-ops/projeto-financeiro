@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models.recorrente_model import listar_recorrentes, criar_recorrente, excluir_recorrente
 
 recorrente_bp = Blueprint('recorrente', __name__)
@@ -8,7 +8,11 @@ def gerenciar_recorrentes():
     """
     Exibe a tela de gerenciamento de transações recorrentes/fixas.
     """
-    recorrentes = listar_recorrentes()
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
+    recorrentes = listar_recorrentes(user_id=user_id)
     return render_template('recorrente.html', recorrentes=recorrentes)
 
 @recorrente_bp.route('/recorrentes/criar', methods=['POST'])
@@ -16,6 +20,10 @@ def criar():
     """
     Cadastra uma nova transação recorrente.
     """
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
     descricao = request.form.get('descricao')
     
     valor_str = request.form.get('valor')
@@ -29,7 +37,7 @@ def criar():
     dia_vencimento = int(dia_vencimento_str) if dia_vencimento_str else 1
 
     if descricao and valor > 0 and tipo and dia_vencimento:
-        criar_recorrente(descricao, valor, tipo, dia_vencimento, categoria, forma_pagamento)
+        criar_recorrente(user_id, descricao, valor, tipo, dia_vencimento, categoria, forma_pagamento)
         flash('Transação fixa cadastrada com sucesso!', 'success')
     else:
         flash('Preencha todos os campos obrigatórios corretamente.', 'danger')
@@ -41,6 +49,10 @@ def excluir(recorrente_id):
     """
     Remove uma transação recorrente.
     """
-    excluir_recorrente(recorrente_id)
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
+    excluir_recorrente(recorrente_id, user_id=user_id)
     flash('Transação fixa removida com sucesso!', 'success')
     return redirect(url_for('recorrente.gerenciar_recorrentes'))

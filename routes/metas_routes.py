@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models.meta_model import (
     listar_metas,
     obter_meta_por_id,
@@ -11,10 +11,14 @@ metas_bp = Blueprint('metas', __name__)
 
 @metas_bp.route('/metas')
 def index():
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
     categoria = request.args.get('categoria')
     busca = request.args.get('busca')
 
-    metas = listar_metas(categoria=categoria, busca=busca)
+    metas = listar_metas(user_id=user_id, categoria=categoria, busca=busca)
     
     # Otimização: Idealmente, calcule esses somatórios diretamente no banco (SUM) conforme a tabela crescer.
     valor_alvo_total = sum(m.get('valor_alvo', 0) for m in metas)
@@ -31,6 +35,10 @@ def index():
 
 @metas_bp.route('/metas/nova', methods=['POST'])
 def nova():
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
     nome = request.form.get('nome')
     categoria = request.form.get('categoria')
     
@@ -44,12 +52,16 @@ def nova():
     data_limite = request.form.get('data_limite')
     observacoes = request.form.get('observacoes', '')
 
-    criar_meta(nome, categoria, valor_alvo, valor_atual, data_limite, observacoes)
+    criar_meta(user_id, nome, categoria, valor_alvo, valor_atual, data_limite, observacoes)
     flash('Meta cadastrada com sucesso!', 'success')
     return redirect(url_for('metas.index'))
 
 @metas_bp.route('/metas/editar/<int:id>', methods=['POST'])
 def editar(id):
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
     nome = request.form.get('nome')
     categoria = request.form.get('categoria')
     
@@ -62,12 +74,16 @@ def editar(id):
     data_limite = request.form.get('data_limite')
     observacoes = request.form.get('observacoes', '')
 
-    atualizar_meta(id, nome, categoria, valor_alvo, valor_atual, data_limite, observacoes)
+    atualizar_meta(id, user_id, nome, categoria, valor_alvo, valor_atual, data_limite, observacoes)
     flash('Meta atualizada com sucesso!', 'success')
     return redirect(url_for('metas.index'))
 
 @metas_bp.route('/metas/excluir/<int:id>', methods=['POST'])
 def excluir(id):
-    excluir_meta(id)
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+        
+    user_id = session['user_id']
+    excluir_meta(id, user_id=user_id)
     flash('Meta removida com sucesso!', 'success')
     return redirect(url_for('metas.index'))
