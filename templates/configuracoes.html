@@ -2,50 +2,75 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Configurações - Balanc$</title>
+    <!-- Mantém o CSS global do projeto que renderiza a barra de topo e o tema -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Se o seu projeto usa Tailwind via CDN ou arquivo local, garanta que os estilos base estejam carregados -->
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <ul>
+    <!-- Se o seu projeto utiliza um template base (ex: extends 'base.html'), você pode encapsular o conteúdo abaixo. 
+         Como o arquivo está estruturado de forma avulsa conforme sua imagem, mantemos a barra e o layout idênticos: -->
+
+    <!-- Mensagens Flash -->
+    <div class="container mx-auto px-4 mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
                 {% for category, message in messages %}
-                    {% if category == 'danger' %}
-                        <li style="color: red;">{{ message }}</li>
-                    {% else %}
-                        <li style="color: green;">{{ message }}</li>
-                    {% endif %}
+                    <div class="p-4 mb-4 rounded bg-red-900/60 border border-red-700 text-white flex justify-between items-center">
+                        <span>{{ message }}</span>
+                    </div>
                 {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
+            {% endif %}
+        {% endwith %}
+    </div>
 
-    <h1>⚙️ Configurações do Sistema</h1>
-    
-    <p>Gerencie os dados do seu sistema, realize backups de segurança ou restaure dados anteriores.</p>
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-2xl font-bold mb-2 flex items-center gap-2">⚙️ Configurações do Sistema</h1>
+        <p class="text-gray-400 mb-6">Gerencie os dados do seu sistema, realize backups de segurança ou restaure dados anteriores.</p>
 
-    <h2>📥 Exportar Backup</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            <!-- Exportar Backup -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold mb-3 text-blue-400 flex items-center gap-2">📥 Exportar Backup</h2>
+                    <p class="text-gray-400 mb-6 text-sm">
+                        Faça o download de uma cópia completa do seu banco de dados em formato <code>.db</code> ou nuvem <code>.json</code>. Guarde este arquivo em um local seguro (pen drive, nuvem) para evitar perda de dados.
+                    </p>
+                </div>
+                <a href="{{ url_for('configuracoes.fazer_backup') }}" class="block text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded transition">
+                    📥 Baixar Arquivo de Backup
+                </a>
+            </div>
 
-    <p>Faça o download de uma cópia completa do seu banco de dados (formato local `.db` ou estruturado em nuvem `.json`). Guarde este arquivo em um local seguro.</p>
-    
-    <p><a href="{{ url_for('configuracoes.fazer_backup') }}">Baixar Arquivo de Backup</a></p>
+            <!-- Restaurar Backup -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-md border border-gray-700 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold mb-3 text-yellow-400 flex items-center gap-2">📤 Restaurar Backup</h2>
+                    <p class="text-gray-400 mb-4 text-sm">
+                        Selecione um arquivo de banco de dados (<code>.db</code> ou <code>.json</code>) gerado anteriormente para restaurar as suas informações.
+                    </p>
+                    
+                    <div class="bg-yellow-900/40 border border-yellow-700 p-3 rounded mb-4 text-xs text-yellow-300">
+                        ⚠️ <strong>Atenção:</strong> A restauração irá substituir completamente o banco de dados atual pelo arquivo enviado.
+                    </div>
+                </div>
 
-    <h2>📤 Restaurar Backup</h2>
+                <form action="{{ url_for('configuracoes.restaurar_backup') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+                    <div>
+                        <input type="file" name="arquivo_db" accept=".db,.json" required class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-gray-200 hover:file:bg-gray-600 border border-gray-700 rounded p-1 bg-gray-900">
+                    </div>
+                    <button type="submit" class="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-950 font-bold py-2.5 px-4 rounded transition">
+                        🔄 Restaurar Dados
+                    </button>
+                </form>
+            </div>
 
-    <p>Selecione um arquivo de banco de dados gerado anteriormente para restaurar as suas informações.</p>
-
-    <p>
-        <strong>⚠️ Atenção:</strong> A restauração irá substituir completamente o banco de dados atual pelo arquivo enviado.
-    </p>
-
-    <form action="{{ url_for('configuracoes.restaurar_backup') }}" method="POST" enctype="multipart/form-data">
-        <p>
-            <input type="file" name="arquivo_db" accept=".db,.json" required>
-        </p>
-        <p>
-            <button type="submit">Restaurar Dados</button>
-        </p>
-    </form>
+        </div>
+    </div>
 
 </body>
 </html>
