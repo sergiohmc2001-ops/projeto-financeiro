@@ -1,15 +1,15 @@
 from database.connection import DATABASE_URL, get_db_connection
 
-def listar_despesas(mes=None, categoria=None, busca=None, ordem='DESC'):
+def listar_despesas(user_id, mes=None, categoria=None, busca=None, ordem='DESC'):
     """
-    Retorna a lista de despesas filtrada e ordenada.
+    Retorna a lista de despesas do usuário filtrada e ordenada.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     
     ph = "%s" if DATABASE_URL else "?"
-    query = "SELECT * FROM Despesas WHERE 1=1"
-    params = []
+    query = f"SELECT * FROM Despesas WHERE user_id = {ph}"
+    params = [user_id]
 
     if mes:
         mes_formatado = f"{int(mes):02d}"
@@ -38,37 +38,37 @@ def listar_despesas(mes=None, categoria=None, busca=None, ordem='DESC'):
     conn.close()
     return despesas
 
-def obter_despesa_por_id(despesa_id):
+def obter_despesa_por_id(despesa_id, user_id):
     """
-    Retorna os detalhes de uma única despesa pelo ID.
+    Retorna os detalhes de uma única despesa pelo ID pertencente ao usuário.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
     
-    cursor.execute(f"SELECT * FROM Despesas WHERE id = {ph}", (despesa_id,))
+    cursor.execute(f"SELECT * FROM Despesas WHERE id = {ph} AND user_id = {ph}", (despesa_id, user_id))
     despesa = cursor.fetchone()
     conn.close()
     return despesa
 
-def criar_despesa(descricao, valor, categoria, data_despesa, forma_pagamento, observacoes=""):
+def criar_despesa(user_id, descricao, valor, categoria, data_despesa, forma_pagamento, observacoes=""):
     """
-    Cadastra uma nova despesa no banco de dados.
+    Cadastra uma nova despesa vinculada ao usuário no banco de dados.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
     
     cursor.execute(f'''
-        INSERT INTO Despesas (descricao, valor, categoria, data_despesa, forma_pagamento, observacoes)
-        VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph})
-    ''', (descricao, valor, categoria, data_despesa, forma_pagamento, observacoes))
+        INSERT INTO Despesas (user_id, descricao, valor, categoria, data_despesa, forma_pagamento, observacoes)
+        VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
+    ''', (user_id, descricao, valor, categoria, data_despesa, forma_pagamento, observacoes))
     conn.commit()
     conn.close()
 
-def atualizar_despesa(despesa_id, descricao, valor, categoria, data_despesa, forma_pagamento, observacoes=""):
+def atualizar_despesa(despesa_id, user_id, descricao, valor, categoria, data_despesa, forma_pagamento, observacoes=""):
     """
-    Atualiza os dados de uma despesa existente.
+    Atualiza os dados de uma despesa existente do usuário.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -77,30 +77,32 @@ def atualizar_despesa(despesa_id, descricao, valor, categoria, data_despesa, for
     cursor.execute(f'''
         UPDATE Despesas
         SET descricao = {ph}, valor = {ph}, categoria = {ph}, data_despesa = {ph}, forma_pagamento = {ph}, observacoes = {ph}
-        WHERE id = {ph}
-    ''', (descricao, valor, categoria, data_despesa, forma_pagamento, observacoes, despesa_id))
+        WHERE id = {ph} AND user_id = {ph}
+    ''', (descricao, valor, categoria, data_despesa, forma_pagamento, observacoes, despesa_id, user_id))
     conn.commit()
     conn.close()
 
-def excluir_despesa(despesa_id):
+def excluir_despesa(despesa_id, user_id):
     """
-    Remove uma despesa do banco de dados.
+    Remove uma despesa do usuário do banco de dados.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
     
-    cursor.execute(f"DELETE FROM Despesas WHERE id = {ph}", (despesa_id,))
+    cursor.execute(f"DELETE FROM Despesas WHERE id = {ph} AND user_id = {ph}", (despesa_id, user_id))
     conn.commit()
     conn.close()
 
-def calcular_total_despesas():
+def calcular_total_despesas(user_id):
     """
-    Retorna o somatório de todas as despesas cadastradas.
+    Retorna o somatório de todas as despesas cadastradas para o usuário.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT SUM(valor) as total FROM Despesas")
+    ph = "%s" if DATABASE_URL else "?"
+    
+    cursor.execute(f"SELECT SUM(valor) as total FROM Despesas WHERE user_id = {ph}", (user_id,))
     resultado = cursor.fetchone()
     conn.close()
     return resultado['total'] if resultado and resultado['total'] else 0.0

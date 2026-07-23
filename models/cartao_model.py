@@ -2,9 +2,9 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from database.connection import DATABASE_URL, get_db_connection
 
-def listar_cartoes(busca=None):
+def listar_cartoes(user_id, busca=None):
     """
-    Retorna todos os cartões cadastrados calculando automaticamente:
+    Retorna todos os cartões cadastrados do usuário calculando automaticamente:
     - valor_utilizado
     - limite_disponivel
     """
@@ -12,17 +12,18 @@ def listar_cartoes(busca=None):
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
     
-    query = '''
+    query = f'''
         SELECT 
             c.*,
             COALESCE(SUM(cc.valor), 0) AS valor_utilizado
         FROM Cartoes c
-        LEFT JOIN ComprasCartao cc ON c.id = cc.cartao_id
+        LEFT JOIN ComprasCartao cc ON c.id = cc.cartao_id AND cc.user_id = {ph}
+        WHERE c.user_id = {ph}
     '''
-    params = []
+    params = [user_id, user_id]
 
     if busca:
-        query += f" WHERE c.nome LIKE {ph} OR c.banco LIKE {ph}"
+        query += f" AND (c.nome LIKE {ph} OR c.banco LIKE {ph})"
         params.extend([f"%{busca}%", f"%{busca}%"])
 
     query += " GROUP BY c.id ORDER BY c.nome ASC"
@@ -48,9 +49,9 @@ def listar_cartoes(busca=None):
 
     return cartoes
 
-def obter_cartao_por_id(cartao_id):
+def obter_cartao_por_id(cartao_id, user_id):
     """
-    Retorna os detalhes de um cartão específico com seus totais calculados.
+    Retorna os detalhes de um cartão específico do usuário com seus totais calculados.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -61,12 +62,12 @@ def obter_cartao_por_id(cartao_id):
             c.*,
             COALESCE(SUM(cc.valor), 0) AS valor_utilizado
         FROM Cartoes c
-        LEFT JOIN ComprasCartao cc ON c.id = cc.cartao_id
-        WHERE c.id = {ph}
+        LEFT JOIN ComprasCartao cc ON c.id = cc.cartao_id AND cc.user_id = {ph}
+        WHERE c.id = {ph} AND c.user_id = {ph}
         GROUP BY c.id
     '''
     try:
-        cursor.execute(query, (cartao_id,))
+        cursor.execute(query, (user_id, cartao_id, user_id))
         cartao_raw = cursor.fetchone()
     except Exception:
         if DATABASE_URL:
@@ -82,9 +83,9 @@ def obter_cartao_por_id(cartao_id):
         return cartao_dict
     return None
 
-def criar_cartao(nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor="#1f2937"):
+def criar_cartao(user_id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor="#1f2937"):
     """
-    Cadastra um novo cartão de crédito com suporte a cor personalizada.
+    Cadastra um novo cartão de crédito vinculado ao usuário com suporte a cor personalizada.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -92,9 +93,9 @@ def criar_cartao(nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, 
 
     try:
         cursor.execute(f'''
-            INSERT INTO Cartoes (nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
-            VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
-        ''', (nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor))
+            INSERT INTO Cartoes (user_id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
+            VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
+        ''', (user_id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor))
         conn.commit()
     except Exception:
         if DATABASE_URL:
@@ -104,9 +105,9 @@ def criar_cartao(nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, 
         cursor.close()
         conn.close()
 
-def atualizar_cartao(cartao_id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor="#1f2937"):
+def atualizar_cartao(cartao_id, user_id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor="#1f2937"):
     """
-    Atualiza os dados cadastrais do cartão incluindo a cor.
+    Atualiza os dados cadastrais do cartão do usuário incluindo a cor.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -116,8 +117,8 @@ def atualizar_cartao(cartao_id, nome, banco, bandeira, limite, dia_fechamento, d
         cursor.execute(f'''
             UPDATE Cartoes
             SET nome = {ph}, banco = {ph}, bandeira = {ph}, limite = {ph}, dia_fechamento = {ph}, dia_vencimento = {ph}, cor = {ph}
-            WHERE id = {ph}
-        ''', (nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor, cartao_id))
+            WHERE id = {ph} AND user_id = {ph}
+        ''', (nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor, cartao_id, user_id))
         conn.commit()
     except Exception:
         if DATABASE_URL:
@@ -127,16 +128,16 @@ def atualizar_cartao(cartao_id, nome, banco, bandeira, limite, dia_fechamento, d
         cursor.close()
         conn.close()
 
-def excluir_cartao(cartao_id):
+def excluir_cartao(cartao_id, user_id):
     """
-    Remove um cartão e, via ON DELETE CASCADE, todas as suas compras associadas.
+    Remove um cartão do usuário e, via ON DELETE CASCADE, todas as suas compras associadas.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
 
     try:
-        cursor.execute(f"DELETE FROM Cartoes WHERE id = {ph}", (cartao_id,))
+        cursor.execute(f"DELETE FROM Cartoes WHERE id = {ph} AND user_id = {ph}", (cartao_id, user_id))
         conn.commit()
     except Exception:
         if DATABASE_URL:
@@ -148,18 +149,17 @@ def excluir_cartao(cartao_id):
 
 # --- Gerenciamento de Compras do Cartão ---
 
-def listar_compras_cartao(cartao_id, busca=None, mes=None, ano=None):
+def listar_compras_cartao(cartao_id, user_id, busca=None, mes=None, ano=None):
     """
-    Lista as compras lançadas em um determinado cartão, permitindo filtrar por termo
-    e/ou por mês e ano de referência da fatura usando comparação de datas padrão.
+    Lista as compras lançadas em um determinado cartão do usuário, permitindo filtrar por termo
+    e/ou por mês e ano de referência da fatura.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
 
-    params = [cartao_id]
+    params = [cartao_id, user_id]
     
-    # Montagem dinâmica do intervalo de datas da fatura
     filtro_data = ""
     if mes and ano:
         mes_int = int(mes)
@@ -178,12 +178,11 @@ def listar_compras_cartao(cartao_id, busca=None, mes=None, ano=None):
         filtro_busca = f" AND cc.descricao LIKE {ph}"
         params.append(f"%{busca}%")
 
-    # Tentativa principal com JOIN na tabela Categorias
     query = f'''
         SELECT cc.*, cat.nome AS categoria 
         FROM ComprasCartao cc
         LEFT JOIN Categorias cat ON cc.categoria_id = cat.id
-        WHERE cc.cartao_id = {ph}
+        WHERE cc.cartao_id = {ph} AND cc.user_id = {ph}
         {filtro_data}
         {filtro_busca}
         ORDER BY cc.data_compra DESC, cc.id DESC
@@ -193,14 +192,13 @@ def listar_compras_cartao(cartao_id, busca=None, mes=None, ano=None):
         cursor.execute(query, params)
         compras = cursor.fetchall()
     except Exception:
-        # Fallback caso a tabela 'Categorias' ainda não exista no banco do usuário
         if DATABASE_URL:
             conn.rollback()
             
         query_fallback = f'''
             SELECT cc.*, NULL as categoria 
             FROM ComprasCartao cc
-            WHERE cc.cartao_id = {ph}
+            WHERE cc.cartao_id = {ph} AND cc.user_id = {ph}
             {filtro_data.replace("cc.", "")}
             {filtro_busca.replace("cc.", "")}
             ORDER BY data_compra DESC, id DESC
@@ -218,9 +216,9 @@ def listar_compras_cartao(cartao_id, busca=None, mes=None, ano=None):
         
     return compras
 
-def criar_compra_cartao(cartao_id, descricao, valor_total, data_compra, parcelas=1, categoria_id=None):
+def criar_compra_cartao(cartao_id, user_id, descricao, valor_total, data_compra, parcelas=1, categoria_id=None):
     """
-    Registra uma compra no cartão. Se o número de parcelas for maior que 1,
+    Registra uma compra no cartão vinculada ao usuário. Se o número de parcelas for maior que 1,
     divide o valor total e gera automaticamente N registros nos meses subsequentes.
     """
     conn = get_db_connection()
@@ -250,20 +248,18 @@ def criar_compra_cartao(cartao_id, descricao, valor_total, data_compra, parcelas
             data_str = data_parcela.strftime('%Y-%m-%d')
             desc_final = descricao
 
-            # Tenta inserir já com a categoria_id (caso a coluna exista)
             try:
                 cursor.execute(f'''
-                    INSERT INTO ComprasCartao (cartao_id, descricao, valor, data_compra, parcelas, parcela_atual, categoria_id)
-                    VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
-                ''', (cartao_id, desc_final, valor_atual, data_str, parcelas, i, categoria_id))
+                    INSERT INTO ComprasCartao (user_id, cartao_id, descricao, valor, data_compra, parcelas, parcela_atual, categoria_id)
+                    VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
+                ''', (user_id, cartao_id, desc_final, valor_atual, data_str, parcelas, i, categoria_id))
             except Exception:
                 if DATABASE_URL:
                     conn.rollback()
-                # Fallback se a coluna categoria_id ainda não estiver criada no banco legado
                 cursor.execute(f'''
-                    INSERT INTO ComprasCartao (cartao_id, descricao, valor, data_compra, parcelas, parcela_atual)
-                    VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph})
-                ''', (cartao_id, desc_final, valor_atual, data_str, parcelas, i))
+                    INSERT INTO ComprasCartao (user_id, cartao_id, descricao, valor, data_compra, parcelas, parcela_atual)
+                    VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
+                ''', (user_id, cartao_id, desc_final, valor_atual, data_str, parcelas, i))
 
         conn.commit()
     except Exception:
@@ -274,16 +270,16 @@ def criar_compra_cartao(cartao_id, descricao, valor_total, data_compra, parcelas
         cursor.close()
         conn.close()
 
-def obter_compra_por_id(compra_id):
+def obter_compra_por_id(compra_id, user_id):
     """
-    Retorna os detalhes de uma compra específica.
+    Retorna os detalhes de uma compra específica do usuário.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
 
     try:
-        cursor.execute(f"SELECT * FROM ComprasCartao WHERE id = {ph}", (compra_id,))
+        cursor.execute(f"SELECT * FROM ComprasCartao WHERE id = {ph} AND user_id = {ph}", (compra_id, user_id))
         compra = cursor.fetchone()
     except Exception:
         if DATABASE_URL:
@@ -294,9 +290,9 @@ def obter_compra_por_id(compra_id):
         conn.close()
     return compra
 
-def atualizar_compra_cartao(compra_id, descricao, valor, data_compra, parcelas, parcela_atual, categoria_id=None):
+def atualizar_compra_cartao(compra_id, user_id, descricao, valor, data_compra, parcelas, parcela_atual, categoria_id=None):
     """
-    Atualiza os dados de uma compra específica do cartão.
+    Atualiza os dados de uma compra específica do cartão pertencente ao usuário.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -312,16 +308,16 @@ def atualizar_compra_cartao(compra_id, descricao, valor, data_compra, parcelas, 
             cursor.execute(f'''
                 UPDATE ComprasCartao
                 SET descricao = {ph}, valor = {ph}, data_compra = {ph}, parcelas = {ph}, parcela_atual = {ph}, categoria_id = {ph}
-                WHERE id = {ph}
-            ''', (descricao, valor, data_compra, parcelas, parcela_atual, categoria_id, compra_id))
+                WHERE id = {ph} AND user_id = {ph}
+            ''', (descricao, valor, data_compra, parcelas, parcela_atual, categoria_id, compra_id, user_id))
         except Exception:
             if DATABASE_URL:
                 conn.rollback()
             cursor.execute(f'''
                 UPDATE ComprasCartao
                 SET descricao = {ph}, valor = {ph}, data_compra = {ph}, parcelas = {ph}, parcela_atual = {ph}
-                WHERE id = {ph}
-            ''', (descricao, valor, data_compra, parcelas, parcela_atual, compra_id))
+                WHERE id = {ph} AND user_id = {ph}
+            ''', (descricao, valor, data_compra, parcelas, parcela_atual, compra_id, user_id))
 
         conn.commit()
     except Exception:
@@ -332,16 +328,16 @@ def atualizar_compra_cartao(compra_id, descricao, valor, data_compra, parcelas, 
         cursor.close()
         conn.close()
 
-def excluir_compra_cartao(compra_id):
+def excluir_compra_cartao(compra_id, user_id):
     """
-    Remove uma compra específica do cartão.
+    Remove uma compra específica do cartão do usuário.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
 
     try:
-        cursor.execute(f"DELETE FROM ComprasCartao WHERE id = {ph}", (compra_id,))
+        cursor.execute(f"DELETE FROM ComprasCartao WHERE id = {ph} AND user_id = {ph}", (compra_id, user_id))
         conn.commit()
     except Exception:
         if DATABASE_URL:

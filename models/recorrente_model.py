@@ -1,15 +1,17 @@
 from datetime import datetime
 from database.connection import DATABASE_URL, get_db_connection
 
-def listar_recorrentes():
+def listar_recorrentes(user_id):
     """
-    Lista todas as contas fixas/recorrentes cadastradas.
+    Lista todas as contas fixas/recorrentes cadastradas para o usuário.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    placeholder = "%s" if DATABASE_URL else "?"
     cursor.execute(
-        "SELECT * FROM TransacoesRecorrentes WHERE ativo = 1 ORDER BY dia_vencimento ASC"
+        f"SELECT * FROM TransacoesRecorrentes WHERE user_id = {placeholder} AND ativo = 1 ORDER BY dia_vencimento ASC",
+        (user_id,)
     )
     recorrentes = cursor.fetchall()
     
@@ -17,69 +19,72 @@ def listar_recorrentes():
     conn.close()
     return recorrentes
 
-def criar_recorrente(descricao, valor, tipo, dia_vencimento, categoria=None, forma_pagamento='Dinheiro/Pix'):
+def criar_recorrente(user_id, descricao, valor, tipo, dia_vencimento, categoria=None, forma_pagamento='Dinheiro/Pix'):
     """
-    Cadastra uma nova receita ou despesa fixa mensal.
+    Cadastra uma nova receita ou despesa fixa mensal vinculada ao usuário.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     
     placeholder = "%s" if DATABASE_URL else "?"
     query = f'''
-        INSERT INTO TransacoesRecorrentes (descricao, valor, tipo, categoria, forma_pagamento, dia_vencimento)
-        VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+        INSERT INTO TransacoesRecorrentes (user_id, descricao, valor, tipo, categoria, forma_pagamento, dia_vencimento)
+        VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
     '''
     
-    cursor.execute(query, (descricao, float(valor), tipo, categoria, forma_pagamento, int(dia_vencimento)))
+    cursor.execute(query, (user_id, descricao, float(valor), tipo, categoria, forma_pagamento, int(dia_vencimento)))
     conn.commit()
     
     cursor.close()
     conn.close()
 
-def obter_recorrente_por_id(recorrente_id):
+def obter_recorrente_por_id(recorrente_id, user_id):
     """
-    Retorna os detalhes de uma transação recorrente específica.
+    Retorna os detalhes de uma transação recorrente específica do usuário.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     
     placeholder = "%s" if DATABASE_URL else "?"
-    cursor.execute(f"SELECT * FROM TransacoesRecorrentes WHERE id = {placeholder}", (recorrente_id,))
+    cursor.execute(f"SELECT * FROM TransacoesRecorrentes WHERE id = {placeholder} AND user_id = {placeholder}", (recorrente_id, user_id))
     recorrente = cursor.fetchone()
     
     cursor.close()
     conn.close()
     return recorrente
 
-def excluir_recorrente(recorrente_id):
+def excluir_recorrente(recorrente_id, user_id):
     """
-    Remove um lançamento recorrente.
+    Remove um lançamento recorrente do usuário.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     
     placeholder = "%s" if DATABASE_URL else "?"
-    cursor.execute(f"DELETE FROM TransacoesRecorrentes WHERE id = {placeholder}", (recorrente_id,))
+    cursor.execute(f"DELETE FROM TransacoesRecorrentes WHERE id = {placeholder} AND user_id = {placeholder}", (recorrente_id, user_id))
     conn.commit()
     
     cursor.close()
     conn.close()
 
-def processar_recorrencias_do_mes():
+def processar_recorrencias_do_mes(user_id=None):
     """
-    Verifica todas as contas fixas ativas. Se alguma ainda não tiver sido
-    gerada no mês/ano atual, insere automaticamente na tabela Despesas ou Receitas.
+    Verifica contas fixas ativas. Se user_id for passado, processa apenas para ele; 
+    caso contrário, pode ser adaptado ou chamado passando o usuário da sessão.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     
     hoje = datetime.now()
     mes_ano_atual = hoje.strftime('%Y-%m') # Exemplo: '2026-07'
-
-    cursor.execute("SELECT * FROM TransacoesRecorrentes WHERE ativo = 1")
-    recorrentes = cursor.fetchall()
-
     placeholder = "%s" if DATABASE_URL else "?"
+
+    if user_id:
+        cursor.execute(f"SELECT * FROM TransacoesRecorrentes WHERE user_id = {placeholder} AND ativo = 1", (user_id,))
+    else:
+        cursor.execute("SELECT * FROM TransacoesRecorrentes WHERE ativo = 1")
+        
+    recorrentes = cursor.fetchall()
 
     for item in recorrentes:
         # Se já foi processada neste mês, pula para a próxima
@@ -96,11 +101,14 @@ def processar_recorrencias_do_mes():
             ultimo_dia = calendar.monthrange(hoje.year, hoje.month)[1]
             data_lancamento = datetime(hoje.year, hoje.month, ultimo_dia).strftime('%Y-%m-%d')
 
+        current_user_id = item['user_id']
+
         if item['tipo'] == 'Despesa':
             cursor.execute(f'''
-                INSERT INTO Despesas (descricao, valor, categoria, data_despesa, forma_pagamento, observacoes)
-                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                INSERT INTO Despesas (user_id, descricao, valor, categoria, data_despesa, forma_pagamento, observacoes)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             ''', (
+                current_user_id,
                 item['descricao'],
                 item['valor'],
                 item['categoria'] or 'Fixa',
@@ -111,9 +119,10 @@ def processar_recorrencias_do_mes():
 
         elif item['tipo'] == 'Receita':
             cursor.execute(f'''
-                INSERT INTO Receitas (descricao, valor, fonte, data_receita, observacoes)
-                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                INSERT INTO Receitas (user_id, descricao, valor, fonte, data_receita, observacoes)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             ''', (
+                current_user_id,
                 item['descricao'],
                 item['valor'],
                 item['categoria'] or 'Fixa',
