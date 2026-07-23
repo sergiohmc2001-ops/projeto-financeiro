@@ -16,7 +16,7 @@ def index():
 
     metas = listar_metas(categoria=categoria, busca=busca)
     
-    # Cálculos de totais para o Dashboard/Resumo
+    # Otimização: Idealmente, calcule esses somatórios diretamente no banco (SUM) conforme a tabela crescer.
     valor_alvo_total = sum(m.get('valor_alvo', 0) for m in metas)
     valor_atual_total = sum(m.get('valor_atual', 0) for m in metas)
 
@@ -33,8 +33,14 @@ def index():
 def nova():
     nome = request.form.get('nome')
     categoria = request.form.get('categoria')
-    valor_alvo = float(request.form.get('valor_alvo', 0))
-    valor_atual = float(request.form.get('valor_atual', 0))
+    
+    # Tratamento seguro para conversão de valores numéricos
+    valor_alvo_str = request.form.get('valor_alvo')
+    valor_alvo = float(valor_alvo_str) if valor_alvo_str else 0.0
+    
+    valor_atual_str = request.form.get('valor_atual')
+    valor_atual = float(valor_atual_str) if valor_atual_str else 0.0
+    
     data_limite = request.form.get('data_limite')
     observacoes = request.form.get('observacoes', '')
 
@@ -46,8 +52,13 @@ def nova():
 def editar(id):
     nome = request.form.get('nome')
     categoria = request.form.get('categoria')
-    valor_alvo = float(request.form.get('valor_alvo', 0))
-    valor_atual = float(request.form.get('valor_atual', 0))
+    
+    valor_alvo_str = request.form.get('valor_alvo')
+    valor_alvo = float(valor_alvo_str) if valor_alvo_str else 0.0
+    
+    valor_atual_str = request.form.get('valor_atual')
+    valor_atual = float(valor_atual_str) if valor_atual_str else 0.0
+    
     data_limite = request.form.get('data_limite')
     observacoes = request.form.get('observacoes', '')
 

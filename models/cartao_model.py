@@ -157,66 +157,61 @@ def listar_compras_cartao(cartao_id, busca=None, mes=None, ano=None):
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
 
+    params = [cartao_id]
+    
+    # Montagem dinâmica do intervalo de datas da fatura
+    filtro_data = ""
+    if mes and ano:
+        mes_int = int(mes)
+        ano_int = int(ano)
+        data_inicio = f"{ano_int:04d}-{mes_int:02d}-01"
+        if mes_int == 12:
+            data_fim = f"{ano_int + 1:04d}-01-01"
+        else:
+            data_fim = f"{ano_int:04d}-{mes_int + 1:02d}-01"
+
+        filtro_data = f" AND cc.data_compra >= {ph} AND cc.data_compra < {ph}"
+        params.extend([data_inicio, data_fim])
+
+    filtro_busca = ""
+    if busca:
+        filtro_busca = f" AND cc.descricao LIKE {ph}"
+        params.append(f"%{busca}%")
+
+    # Tentativa principal com JOIN na tabela Categorias
+    query = f'''
+        SELECT cc.*, cat.nome AS categoria 
+        FROM ComprasCartao cc
+        LEFT JOIN Categorias cat ON cc.categoria_id = cat.id
+        WHERE cc.cartao_id = {ph}
+        {filtro_data}
+        {filtro_busca}
+        ORDER BY cc.data_compra DESC, cc.id DESC
+    '''
+
     try:
-        query = '''
-            SELECT cc.*, cat.nome AS categoria 
-            FROM ComprasCartao cc
-            LEFT JOIN Categorias cat ON cc.categoria_id = cat.id
-            WHERE cc.cartao_id = ''' + ph
-        params = [cartao_id]
-
-        if mes and ano:
-            mes_int = int(mes)
-            ano_int = int(ano)
-            data_inicio = f"{ano_int:04d}-{mes_int:02d}-01"
-            if mes_int == 12:
-                data_fim = f"{ano_int + 1:04d}-01-01"
-            else:
-                data_fim = f"{ano_int:04d}-{mes_int + 1:02d}-01"
-
-            query += f" AND cc.data_compra >= {ph} AND cc.data_compra < {ph}"
-            params.extend([data_inicio, data_fim])
-
-        if busca:
-            query += f" AND cc.descricao LIKE {ph}"
-            params.append(f"%{busca}%")
-
-        query += " ORDER BY cc.data_compra DESC, cc.id DESC"
         cursor.execute(query, params)
         compras = cursor.fetchall()
-
     except Exception:
+        # Fallback caso a tabela 'Categorias' ainda não exista no banco do usuário
         if DATABASE_URL:
             conn.rollback()
-
-        query = "SELECT *, NULL as categoria FROM ComprasCartao WHERE cartao_id = " + ph
-        params = [cartao_id]
-
-        if mes and ano:
-            mes_int = int(mes)
-            ano_int = int(ano)
-            data_inicio = f"{ano_int:04d}-{mes_int:02d}-01"
-            if mes_int == 12:
-                data_fim = f"{ano_int + 1:04d}-01-01"
-            else:
-                data_fim = f"{ano_int:04d}-{mes_int + 1:02d}-01"
-
-            query += f" AND data_compra >= {ph} AND data_compra < {ph}"
-            params.extend([data_inicio, data_fim])
-
-        if busca:
-            query += f" AND descricao LIKE {ph}"
-            params.append(f"%{busca}%")
-
-        query += " ORDER BY data_compra DESC, id DESC"
+            
+        query_fallback = f'''
+            SELECT cc.*, NULL as categoria 
+            FROM ComprasCartao cc
+            WHERE cc.cartao_id = {ph}
+            {filtro_data.replace("cc.", "")}
+            {filtro_busca.replace("cc.", "")}
+            ORDER BY data_compra DESC, id DESC
+        '''
         try:
-            cursor.execute(query, params)
+            cursor.execute(query_fallback, params)
             compras = cursor.fetchall()
         except Exception:
             if DATABASE_URL:
                 conn.rollback()
             raise
-
     finally:
         cursor.close()
         conn.close()
@@ -255,6 +250,7 @@ def criar_compra_cartao(cartao_id, descricao, valor_total, data_compra, parcelas
             data_str = data_parcela.strftime('%Y-%m-%d')
             desc_final = descricao
 
+            # Tenta inserir já com a categoria_id (caso a coluna exista)
             try:
                 cursor.execute(f'''
                     INSERT INTO ComprasCartao (cartao_id, descricao, valor, data_compra, parcelas, parcela_atual, categoria_id)
@@ -263,6 +259,7 @@ def criar_compra_cartao(cartao_id, descricao, valor_total, data_compra, parcelas
             except Exception:
                 if DATABASE_URL:
                     conn.rollback()
+                # Fallback se a coluna categoria_id ainda não estiver criada no banco legado
                 cursor.execute(f'''
                     INSERT INTO ComprasCartao (cartao_id, descricao, valor, data_compra, parcelas, parcela_atual)
                     VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph})

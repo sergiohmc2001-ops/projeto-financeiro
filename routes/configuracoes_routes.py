@@ -12,7 +12,7 @@ def index():
 
 @configuracoes_bp.route('/configuracoes/backup/download')
 def fazer_backup():
-    if os.path.exists(DATABASE_PATH):
+    if DATABASE_PATH and os.path.exists(DATABASE_PATH):
         # Garante que a pasta de backup exista
         backup_folder = current_app.config.get('BACKUP_FOLDER', 'backups')
         os.makedirs(backup_folder, exist_ok=True)
@@ -25,7 +25,7 @@ def fazer_backup():
         
         return send_file(backup_path, as_attachment=True, download_name=backup_filename)
     else:
-        flash('Banco de dados não encontrado para realizar backup!', 'danger')
+        flash('Banco de dados local não encontrado ou sistema configurado para banco remoto!', 'danger')
         return redirect(url_for('configuracoes.index'))
 
 @configuracoes_bp.route('/configuracoes/backup/restaurar', methods=['POST'])
@@ -40,10 +40,13 @@ def restaurar_backup():
         flash('Nenhum arquivo foi selecionado!', 'danger')
         return redirect(url_for('configuracoes.index'))
 
-    if file and file.filename.endswith('.db'):
-        file.save(DATABASE_PATH)
-        flash('Banco de dados restaurado com sucesso!', 'success')
+    if file and file.filename.endswith('.db') and DATABASE_PATH:
+        try:
+            file.save(DATABASE_PATH)
+            flash('Banco de dados restaurado com sucesso!', 'success')
+        except Exception as e:
+            flash(f'Erro ao restaurar o banco de dados: {str(e)}', 'danger')
     else:
-        flash('Por favor, envie um arquivo de banco de dados válido (.db).', 'danger')
+        flash('Por favor, envie um arquivo de banco de dados válido (.db) ou verifique o tipo de banco configurado.', 'danger')
 
     return redirect(url_for('configuracoes.index'))

@@ -17,17 +17,22 @@ def criar():
     Cadastra uma nova transação recorrente.
     """
     descricao = request.form.get('descricao')
-    valor = request.form.get('valor')
+    
+    valor_str = request.form.get('valor')
+    valor = float(valor_str) if valor_str else 0.0
+    
     tipo = request.form.get('tipo') # 'Despesa' ou 'Receita'
     categoria = request.form.get('categoria')
     forma_pagamento = request.form.get('forma_pagamento', 'Dinheiro/Pix')
-    dia_vencimento = request.form.get('dia_vencimento')
+    
+    dia_vencimento_str = request.form.get('dia_vencimento')
+    dia_vencimento = int(dia_vencimento_str) if dia_vencimento_str else 1
 
-    if descricao and valor and tipo and dia_vencimento:
+    if descricao and valor > 0 and tipo and dia_vencimento:
         criar_recorrente(descricao, valor, tipo, dia_vencimento, categoria, forma_pagamento)
         flash('Transação fixa cadastrada com sucesso!', 'success')
     else:
-        flash('Preencha todos os campos obrigatórios.', 'danger')
+        flash('Preencha todos os campos obrigatórios corretamente.', 'danger')
 
     return redirect(url_for('recorrente.gerenciar_recorrentes'))
 

@@ -45,7 +45,10 @@ def index():
 @receitas_bp.route('/receitas/nova', methods=['POST'])
 def nova():
     descricao = request.form.get('descricao')
-    valor = float(request.form.get('valor', 0))
+    
+    valor_str = request.form.get('valor')
+    valor = float(valor_str) if valor_str else 0.0
+    
     fonte = request.form.get('fonte')
     data_receita = request.form.get('data_receita')
     observacoes = request.form.get('observacoes')
@@ -57,7 +60,10 @@ def nova():
 @receitas_bp.route('/receitas/editar/<int:id>', methods=['POST'])
 def editar(id):
     descricao = request.form.get('descricao')
-    valor = float(request.form.get('valor', 0))
+    
+    valor_str = request.form.get('valor')
+    valor = float(valor_str) if valor_str else 0.0
+    
     fonte = request.form.get('fonte')
     data_receita = request.form.get('data_receita')
     observacoes = request.form.get('observacoes')

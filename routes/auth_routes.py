@@ -1,93 +1,173 @@
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
-from database.connection import DATABASE_URL, get_db_connection
-import sqlite3
+from datetime import datetime
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+from models.cartao_model import (
+    listar_cartoes,
+    obter_cartao_por_id,
+    criar_cartao,
+    atualizar_cartao,
+    excluir_cartao,
+    listar_compras_cartao,
+    criar_compra_cartao,
+    atualizar_compra_cartao,
+    excluir_compra_cartao
+)
 
-auth_bp = Blueprint("auth", __name__)
+# Função temporária até que a tabela/model de categorias seja criada definitivamente
+def listar_categorias():
+    return []
 
+cartoes_bp = Blueprint('cartoes', __name__)
 
-@auth_bp.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        email = request.form.get("email")
-        senha = request.form.get("senha")
+@cartoes_bp.route('/cartoes')
+def index():
+    busca = request.args.get('busca')
+    
+    # Captura mês e ano selecionados ou define o mês/ano atual como padrão
+    hoje = datetime.now()
+    mes = request.args.get('mes', type=int, default=hoje.month)
+    ano = request.args.get('ano', type=int, default=hoje.year)
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Usa a variável DATABASE_URL para definir o placeholder correto (? ou %s)
-        ph = "%s" if DATABASE_URL else "?"
-        
-        cursor.execute(f"SELECT * FROM usuarios WHERE email = {ph}", (email,))
-        user = cursor.fetchone()
-        cursor.close()
-        conn.close()
+    cartoes = listar_cartoes(busca=busca)
+    
+    cartao_selecionado_id = request.args.get('cartao_id', type=int)
+    cartao_detalhe = None
+    compras = []
 
-        if user and user["senha"] == senha:  # O ideal depois é usar hash de senha
-            session["user_id"] = user["id"]
-            session["user_email"] = user["email"]
-            return redirect(url_for("dashboard.index"))
-        else:
-            flash("E-mail ou senha incorretos!", "danger")
+    if cartao_selecionado_id:
+        cartao_detalhe = obter_cartao_por_id(cartao_selecionado_id)
+        if cartao_detalhe:
+            compras = listar_compras_cartao(
+                cartao_selecionado_id, 
+                busca=busca, 
+                mes=mes, 
+                ano=ano
+            )
 
-    return render_template("login.html")
+    # Carrega as categorias
+    categorias = listar_categorias()
 
+    return render_template(
+        'cartoes.html',
+        cartoes=cartoes,
+        cartao_detalhe=cartao_detalhe,
+        compras=compras,
+        categorias=categorias,
+        busca=busca,
+        mes_atual=mes,
+        ano_atual=ano
+    )
 
-@auth_bp.route("/cadastro", methods=["GET", "POST"])
-def cadastro():
-    if request.method == "POST":
-        email = request.form.get("email")
-        senha = request.form.get("senha")
+@cartoes_bp.route('/cartoes/novo', methods=['POST'])
+def novo_cartao():
+    nome = request.form.get('nome')
+    banco = request.form.get('banco')
+    bandeira = request.form.get('bandeira')
+    
+    # Tratamento seguro para campos numéricos que podem vir vazios
+    limite_str = request.form.get('limite')
+    limite = float(limite_str) if limite_str else 0.0
+    
+    dia_fechamento = int(request.form.get('dia_fechamento') or 1)
+    dia_vencimento = int(request.form.get('dia_vencimento') or 1)
+    cor = request.form.get('cor', '#1f2937')
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        ph = "%s" if DATABASE_URL else "?"
+    criar_cartao(nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
+    flash('Cartão cadastrado com sucesso!', 'success')
+    return redirect(url_for('cartoes.index'))
 
-        try:
-            cursor.execute(f"INSERT INTO usuarios (email, senha) VALUES ({ph}, {ph})", (email, senha))
-            conn.commit()
-            flash("Conta criada com sucesso! Faça o login.", "success")
-            return redirect(url_for("auth.login"))
-        except Exception:
-            # Captura erro de chave duplicada tanto no SQLite quanto no PostgreSQL/Supabase
-            conn.rollback()
-            flash("Este e-mail já está cadastrado!", "danger")
-        finally:
-            cursor.close()
-            conn.close()
+@cartoes_bp.route('/cartoes/editar/<int:id>', methods=['POST'])
+def editar_cartao(id):
+    nome = request.form.get('nome')
+    banco = request.form.get('banco')
+    bandeira = request.form.get('bandeira')
+    
+    limite_str = request.form.get('limite')
+    limite = float(limite_str) if limite_str else 0.0
+    
+    dia_fechamento = int(request.form.get('dia_fechamento') or 1)
+    dia_vencimento = int(request.form.get('dia_vencimento') or 1)
+    cor = request.form.get('cor', '#1f2937')
 
-    return render_template("cadastro.html")
+    atualizar_cartao(id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
+    flash('Cartão atualizado com sucesso!', 'success')
+    return redirect(url_for('cartoes.index'))
 
+@cartoes_bp.route('/cartoes/excluir/<int:id>', methods=['POST'])
+def excluir_cartao_route(id):
+    excluir_cartao(id)
+    flash('Cartão e suas compras associadas foram excluídos!', 'success')
+    return redirect(url_for('cartoes.index'))
 
-@auth_bp.route("/recuperar", methods=["GET", "POST"])
-def recuperar():
-    if request.method == "POST":
-        email = request.form.get("email")
-        nova_senha = request.form.get("nova_senha")
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        ph = "%s" if DATABASE_URL else "?"
+# --- Compras do Cartão ---
 
-        cursor.execute(f"SELECT * FROM usuarios WHERE email = {ph}", (email,))
-        user = cursor.fetchone()
+@cartoes_bp.route('/cartoes/<int:cartao_id>/compra/nova', methods=['POST'])
+def nova_compra(cartao_id):
+    descricao = request.form.get('descricao')
+    
+    valor_str = request.form.get('valor')
+    valor = float(valor_str) if valor_str else 0.0
+    
+    data_compra = request.form.get('data_compra')
+    parcelas = int(request.form.get('parcelas') or 1)
+    
+    # Captura da Categoria
+    categoria_id = request.form.get('categoria_id', type=int)
 
-        if user:
-            cursor.execute(f"UPDATE usuarios SET senha = {ph} WHERE email = {ph}", (nova_senha, email))
-            conn.commit()
-            cursor.close()
-            conn.close()
-            flash("Senha alterada com sucesso! Faça o login com a nova senha.", "success")
-            return redirect(url_for("auth.login"))
-        else:
-            cursor.close()
-            conn.close()
-            flash("E-mail não encontrado no sistema.", "danger")
-            return redirect(url_for("auth.recuperar"))
+    mes = request.form.get('mes')
+    ano = request.form.get('ano')
 
-    return render_template("recuperar.html")
+    criar_compra_cartao(
+        cartao_id=cartao_id, 
+        descricao=descricao, 
+        valor_total=valor, 
+        data_compra=data_compra, 
+        parcelas=parcelas, 
+        categoria_id=categoria_id
+    )
 
+    flash('Compra lançada no cartão com sucesso!', 'success')
+    return redirect(url_for('cartoes.index', cartao_id=cartao_id, mes=mes, ano=ano))
 
-@auth_bp.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("auth.login"))
+@cartoes_bp.route('/cartoes/compra/editar/<int:id>', methods=['POST'])
+def editar_compra(id):
+    cartao_id = request.form.get('cartao_id', type=int)
+    descricao = request.form.get('descricao')
+    
+    valor_str = request.form.get('valor')
+    valor = float(valor_str) if valor_str else 0.0
+    
+    data_compra = request.form.get('data_compra')
+    parcelas = int(request.form.get('parcelas') or 1)
+    parcela_atual = int(request.form.get('parcela_atual') or 1)
+    
+    # Captura da Categoria
+    categoria_id = request.form.get('categoria_id', type=int)
+
+    mes = request.form.get('mes')
+    ano = request.form.get('ano')
+
+    atualizar_compra_cartao(
+        compra_id=id, 
+        descricao=descricao, 
+        valor=valor, 
+        data_compra=data_compra, 
+        parcelas=parcelas, 
+        parcela_atual=parcela_atual, 
+        categoria_id=categoria_id
+    )
+
+    flash('Compra atualizada!', 'success')
+    return redirect(url_for('cartoes.index', cartao_id=cartao_id, mes=mes, ano=ano))
+
+@cartoes_bp.route('/cartoes/compra/excluir/<int:id>', methods=['POST'])
+def excluir_compra(id):
+    # Captura os parâmetros enviados via query string na URL de exclusão
+    cartao_id = request.args.get('cartao_id', type=int)
+    mes = request.args.get('mes', type=int)
+    ano = request.args.get('ano', type=int)
+
+    excluir_compra_cartao(id)
+    flash('Compra removida!', 'success')
+    
+    # Redireciona de volta para a fatura do cartão mantendo o mês e ano visualizados
+    return redirect(url_for('cartoes.index', cartao_id=cartao_id, mes=mes, ano=ano))

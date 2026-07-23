@@ -18,6 +18,8 @@ def index():
 
     despesas = listar_despesas(mes=mes, categoria=categoria, busca=busca, ordem=ordem)
     
+    # Otimização de Velocidade: Idealmente, o somatório deve vir direto do model/banco de dados 
+    # para evitar processamento em loop no Python (ex: sum(d['valor'] for d in despesas))
     total_filtrado = sum(d['valor'] for d in despesas)
 
     return render_template(
@@ -33,7 +35,10 @@ def index():
 @despesas_bp.route('/despesas/nova', methods=['POST'])
 def nova():
     descricao = request.form.get('descricao')
-    valor = float(request.form.get('valor', 0))
+    
+    valor_str = request.form.get('valor')
+    valor = float(valor_str) if valor_str else 0.0
+    
     categoria = request.form.get('categoria')
     data_despesa = request.form.get('data_despesa')
     forma_pagamento = request.form.get('forma_pagamento')
@@ -46,7 +51,10 @@ def nova():
 @despesas_bp.route('/despesas/editar/<int:id>', methods=['POST'])
 def editar(id):
     descricao = request.form.get('descricao')
-    valor = float(request.form.get('valor', 0))
+    
+    valor_str = request.form.get('valor')
+    valor = float(valor_str) if valor_str else 0.0
+    
     categoria = request.form.get('categoria')
     data_despesa = request.form.get('data_despesa')
     forma_pagamento = request.form.get('forma_pagamento')

@@ -62,9 +62,13 @@ def novo_cartao():
     nome = request.form.get('nome')
     banco = request.form.get('banco')
     bandeira = request.form.get('bandeira')
-    limite = float(request.form.get('limite', 0))
-    dia_fechamento = int(request.form.get('dia_fechamento'))
-    dia_vencimento = int(request.form.get('dia_vencimento'))
+    
+    # Tratamento seguro para campos numéricos que podem vir vazios
+    limite_str = request.form.get('limite')
+    limite = float(limite_str) if limite_str else 0.0
+    
+    dia_fechamento = int(request.form.get('dia_fechamento') or 1)
+    dia_vencimento = int(request.form.get('dia_vencimento') or 1)
     cor = request.form.get('cor', '#1f2937')
 
     criar_cartao(nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
@@ -76,9 +80,12 @@ def editar_cartao(id):
     nome = request.form.get('nome')
     banco = request.form.get('banco')
     bandeira = request.form.get('bandeira')
-    limite = float(request.form.get('limite', 0))
-    dia_fechamento = int(request.form.get('dia_fechamento'))
-    dia_vencimento = int(request.form.get('dia_vencimento'))
+    
+    limite_str = request.form.get('limite')
+    limite = float(limite_str) if limite_str else 0.0
+    
+    dia_fechamento = int(request.form.get('dia_fechamento') or 1)
+    dia_vencimento = int(request.form.get('dia_vencimento') or 1)
     cor = request.form.get('cor', '#1f2937')
 
     atualizar_cartao(id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
@@ -96,9 +103,12 @@ def excluir_cartao_route(id):
 @cartoes_bp.route('/cartoes/<int:cartao_id>/compra/nova', methods=['POST'])
 def nova_compra(cartao_id):
     descricao = request.form.get('descricao')
-    valor = float(request.form.get('valor', 0))
+    
+    valor_str = request.form.get('valor')
+    valor = float(valor_str) if valor_str else 0.0
+    
     data_compra = request.form.get('data_compra')
-    parcelas = int(request.form.get('parcelas', 1))
+    parcelas = int(request.form.get('parcelas') or 1)
     
     # Captura da Categoria
     categoria_id = request.form.get('categoria_id', type=int)
@@ -106,7 +116,6 @@ def nova_compra(cartao_id):
     mes = request.form.get('mes')
     ano = request.form.get('ano')
 
-    # Passa o categoria_id diretamente para o model
     criar_compra_cartao(
         cartao_id=cartao_id, 
         descricao=descricao, 
@@ -123,10 +132,13 @@ def nova_compra(cartao_id):
 def editar_compra(id):
     cartao_id = request.form.get('cartao_id', type=int)
     descricao = request.form.get('descricao')
-    valor = float(request.form.get('valor', 0))
+    
+    valor_str = request.form.get('valor')
+    valor = float(valor_str) if valor_str else 0.0
+    
     data_compra = request.form.get('data_compra')
-    parcelas = int(request.form.get('parcelas', 1))
-    parcela_atual = int(request.form.get('parcela_atual', 1))
+    parcelas = int(request.form.get('parcelas') or 1)
+    parcela_atual = int(request.form.get('parcela_atual') or 1)
     
     # Captura da Categoria
     categoria_id = request.form.get('categoria_id', type=int)
@@ -149,11 +161,13 @@ def editar_compra(id):
 
 @cartoes_bp.route('/cartoes/compra/excluir/<int:id>', methods=['POST'])
 def excluir_compra(id):
+    # Captura os parâmetros enviados via query string na URL de exclusão
     cartao_id = request.args.get('cartao_id', type=int)
-    mes = request.args.get('mes')
-    ano = request.args.get('ano')
+    mes = request.args.get('mes', type=int)
+    ano = request.args.get('ano', type=int)
 
     excluir_compra_cartao(id)
     flash('Compra removida!', 'success')
     
+    # Redireciona de volta para a fatura do cartão mantendo o mês e ano visualizados
     return redirect(url_for('cartoes.index', cartao_id=cartao_id, mes=mes, ano=ano))
