@@ -7,68 +7,87 @@ auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
-  if request.method == "POST":
-    email = request.form.get("email")
-    senha = request.form.get("senha")
+    if request.method == "POST":
+        email = request.form.get("email")
+        senha = request.form.get("senha")
 
-    conn = get_db_connection()
-    user = conn.execute("SELECT * FROM usuarios WHERE email = ?", (email,)).fetchone()
-    conn.close()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Detecta se é PostgreSQL ou SQLite para definir o placeholder correto (? ou %s)
+        ph = "%s" if "psycopg2" in str(type(conn)) or hasattr(conn, "cursor") else "?"
+        
+        cursor.execute(f"SELECT * FROM usuarios WHERE email = {ph}", (email,))
+        user = cursor.fetchone()
+        cursor.close()
+        conn.close()
 
-    if user and user["senha"] == senha:  # O ideal depois é usar hash de senha
-      session["user_id"] = user["id"]
-      session["user_email"] = user["email"]
-      return redirect(url_for("dashboard.index"))
-    else:
-      flash("E-mail ou senha incorretos!", "danger")
+        if user and user["senha"] == senha:  # O ideal depois é usar hash de senha
+            session["user_id"] = user["id"]
+            session["user_email"] = user["email"]
+            return redirect(url_for("dashboard.index"))
+        else:
+            flash("E-mail ou senha incorretos!", "danger")
 
-  return render_template("login.html")
+    return render_template("login.html")
 
 
 @auth_bp.route("/cadastro", methods=["GET", "POST"])
 def cadastro():
-  if request.method == "POST":
-    email = request.form.get("email")
-    senha = request.form.get("senha")
+    if request.method == "POST":
+        email = request.form.get("email")
+        senha = request.form.get("senha")
 
-    conn = get_db_connection()
-    try:
-      conn.execute("INSERT INTO usuarios (email, senha) VALUES (?, ?)", (email, senha))
-      conn.commit()
-      flash("Conta criada com sucesso! Faça o login.", "success")
-      return redirect(url_for("auth.login"))
-    except sqlite3.IntegrityError:
-      flash("Este e-mail já está cadastrado!", "danger")
-    finally:
-      conn.close()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        ph = "%s" if "psycopg2" in str(type(conn)) or hasattr(conn, "cursor") else "?"
 
-  return render_template("cadastro.html")
+        try:
+            cursor.execute(f"INSERT INTO usuarios (email, senha) VALUES ({ph}, {ph})", (email, senha))
+            conn.commit()
+            flash("Conta criada com sucesso! Faça o login.", "success")
+            return redirect(url_for("auth.login"))
+        except Exception:
+            # Captura erro de chave duplicada tanto no SQLite quanto no PostgreSQL/Supabase
+            conn.rollback()
+            flash("Este e-mail já está cadastrado!", "danger")
+        finally:
+            cursor.close()
+            conn.close()
+
+    return render_template("cadastro.html")
 
 
 @auth_bp.route("/recuperar", methods=["GET", "POST"])
 def recuperar():
-  if request.method == "POST":
-    email = request.form.get("email")
-    nova_senha = request.form.get("nova_senha")
-    
-    conn = get_db_connection()
-    user = conn.execute("SELECT * FROM usuarios WHERE email = ?", (email,)).fetchone()
+    if request.method == "POST":
+        email = request.form.get("email")
+        nova_senha = request.form.get("nova_senha")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        ph = "%s" if "psycopg2" in str(type(conn)) or hasattr(conn, "cursor") else "?"
 
-    if user:
-      conn.execute("UPDATE usuarios SET senha = ? WHERE email = ?", (nova_senha, email))
-      conn.commit()
-      conn.close()
-      flash("Senha alterada com sucesso! Faça o login com a nova senha.", "success")
-      return redirect(url_for("auth.login"))
-    else:
-      conn.close()
-      flash("E-mail não encontrado no sistema.", "danger")
-      return redirect(url_for("auth.recuperar"))
+        cursor.execute(f"SELECT * FROM usuarios WHERE email = {ph}", (email,))
+        user = cursor.fetchone()
 
-  return render_template("recuperar.html")
+        if user:
+            cursor.execute(f"UPDATE usuarios SET senha = {ph} WHERE email = {ph}", (nova_senha, email))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            flash("Senha alterada com sucesso! Faça o login com a nova senha.", "success")
+            return redirect(url_for("auth.login"))
+        else:
+            cursor.close()
+            conn.close()
+            flash("E-mail não encontrado no sistema.", "danger")
+            return redirect(url_for("auth.recuperar"))
+
+    return render_template("recuperar.html")
 
 
 @auth_bp.route("/logout")
 def logout():
-  session.clear()
-  return redirect(url_for("auth.login"))
+    session.clear()
+    return redirect(url_for("auth.login"))
