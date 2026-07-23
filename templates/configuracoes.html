@@ -6,12 +6,15 @@
 </head>
 <body>
 
-    <!-- Mensagens Flash do Flask (mantive a lógica básica para feedback) -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <ul>
                 {% for category, message in messages %}
-                    <li style="color: {{ 'red' if category == 'danger' else 'green' }};">{{ message }}</li>
+                    {% if category == 'danger' %}
+                        <li style="color: red;">{{ message }}</li>
+                    {% else %}
+                        <li style="color: green;">{{ message }}</li>
+                    {% endif %}
                 {% endfor %}
             </ul>
         {% endif %}
