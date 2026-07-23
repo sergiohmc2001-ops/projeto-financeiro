@@ -1,5 +1,5 @@
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
-from database.connection import get_db_connection
+from database.connection import DATABASE_URL, get_db_connection
 import sqlite3
 
 auth_bp = Blueprint("auth", __name__)
@@ -14,8 +14,8 @@ def login():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Detecta se é PostgreSQL ou SQLite para definir o placeholder correto (? ou %s)
-        ph = "%s" if "psycopg2" in str(type(conn)) or hasattr(conn, "cursor") else "?"
+        # Usa a variável DATABASE_URL para definir o placeholder correto (? ou %s)
+        ph = "%s" if DATABASE_URL else "?"
         
         cursor.execute(f"SELECT * FROM usuarios WHERE email = {ph}", (email,))
         user = cursor.fetchone()
@@ -40,7 +40,7 @@ def cadastro():
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        ph = "%s" if "psycopg2" in str(type(conn)) or hasattr(conn, "cursor") else "?"
+        ph = "%s" if DATABASE_URL else "?"
 
         try:
             cursor.execute(f"INSERT INTO usuarios (email, senha) VALUES ({ph}, {ph})", (email, senha))
@@ -66,7 +66,7 @@ def recuperar():
         
         conn = get_db_connection()
         cursor = conn.cursor()
-        ph = "%s" if "psycopg2" in str(type(conn)) or hasattr(conn, "cursor") else "?"
+        ph = "%s" if DATABASE_URL else "?"
 
         cursor.execute(f"SELECT * FROM usuarios WHERE email = {ph}", (email,))
         user = cursor.fetchone()

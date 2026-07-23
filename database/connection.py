@@ -73,9 +73,24 @@ def init_db():
             limite REAL NOT NULL,
             dia_fechamento INTEGER NOT NULL,
             dia_vencimento INTEGER NOT NULL,
+            cor TEXT DEFAULT '#1f2937',
             FOREIGN KEY (user_id) REFERENCES usuarios (id) ON DELETE CASCADE
         )
     """)
+
+    # Garante que a coluna 'cor' exista caso a tabela já tenha sido criada anteriormente
+    try:
+        if is_postgres:
+            cursor.execute("ALTER TABLE cartoes ADD COLUMN IF NOT EXISTS cor TEXT DEFAULT '#1f2937';")
+        else:
+            # SQLite não suporta 'IF NOT EXISTS' no ALTER TABLE, então verificamos manualmente se a coluna existe
+            cursor.execute("PRAGMA table_info(cartoes);")
+            colunas = [coluna[1] for coluna in cursor.fetchall()]
+            if 'cor' not in colunas:
+                cursor.execute("ALTER TABLE cartoes ADD COLUMN cor TEXT DEFAULT '#1f2937';")
+    except Exception:
+        if is_postgres:
+            conn.rollback()
 
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS comprascartao (

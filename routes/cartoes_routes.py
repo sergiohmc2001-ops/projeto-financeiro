@@ -65,8 +65,9 @@ def novo_cartao():
     limite = float(request.form.get('limite', 0))
     dia_fechamento = int(request.form.get('dia_fechamento'))
     dia_vencimento = int(request.form.get('dia_vencimento'))
+    cor = request.form.get('cor', '#1f2937')
 
-    criar_cartao(nome, banco, bandeira, limite, dia_fechamento, dia_vencimento)
+    criar_cartao(nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
     flash('Cartão cadastrado com sucesso!', 'success')
     return redirect(url_for('cartoes.index'))
 
@@ -78,8 +79,9 @@ def editar_cartao(id):
     limite = float(request.form.get('limite', 0))
     dia_fechamento = int(request.form.get('dia_fechamento'))
     dia_vencimento = int(request.form.get('dia_vencimento'))
+    cor = request.form.get('cor', '#1f2937')
 
-    atualizar_cartao(id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento)
+    atualizar_cartao(id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
     flash('Cartão atualizado com sucesso!', 'success')
     return redirect(url_for('cartoes.index'))
 

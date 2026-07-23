@@ -82,9 +82,9 @@ def obter_cartao_por_id(cartao_id):
         return cartao_dict
     return None
 
-def criar_cartao(nome, banco, bandeira, limite, dia_fechamento, dia_vencimento):
+def criar_cartao(nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor="#1f2937"):
     """
-    Cadastra um novo cartão de crédito.
+    Cadastra um novo cartão de crédito com suporte a cor personalizada.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -92,9 +92,9 @@ def criar_cartao(nome, banco, bandeira, limite, dia_fechamento, dia_vencimento):
 
     try:
         cursor.execute(f'''
-            INSERT INTO Cartoes (nome, banco, bandeira, limite, dia_fechamento, dia_vencimento)
-            VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph})
-        ''', (nome, banco, bandeira, limite, dia_fechamento, dia_vencimento))
+            INSERT INTO Cartoes (nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor)
+            VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
+        ''', (nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor))
         conn.commit()
     except Exception:
         if DATABASE_URL:
@@ -104,9 +104,9 @@ def criar_cartao(nome, banco, bandeira, limite, dia_fechamento, dia_vencimento):
         cursor.close()
         conn.close()
 
-def atualizar_cartao(cartao_id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento):
+def atualizar_cartao(cartao_id, nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor="#1f2937"):
     """
-    Atualiza os dados cadastrais do cartão.
+    Atualiza os dados cadastrais do cartão incluindo a cor.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -115,9 +115,9 @@ def atualizar_cartao(cartao_id, nome, banco, bandeira, limite, dia_fechamento, d
     try:
         cursor.execute(f'''
             UPDATE Cartoes
-            SET nome = {ph}, banco = {ph}, bandeira = {ph}, limite = {ph}, dia_fechamento = {ph}, dia_vencimento = {ph}
+            SET nome = {ph}, banco = {ph}, bandeira = {ph}, limite = {ph}, dia_fechamento = {ph}, dia_vencimento = {ph}, cor = {ph}
             WHERE id = {ph}
-        ''', (nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cartao_id))
+        ''', (nome, banco, bandeira, limite, dia_fechamento, dia_vencimento, cor, cartao_id))
         conn.commit()
     except Exception:
         if DATABASE_URL:
@@ -151,31 +151,31 @@ def excluir_cartao(cartao_id):
 def listar_compras_cartao(cartao_id, busca=None, mes=None, ano=None):
     """
     Lista as compras lançadas em um determinado cartão, permitindo filtrar por termo
-    e/ou por mês e ano de referência da fatura. Tenta incluir o nome da Categoria.
+    e/ou por mês e ano de referência da fatura usando comparação de datas padrão.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
-    
-    mes_str = f"{int(mes):02d}" if mes else None
-    ano_str = str(ano) if ano else None
 
     try:
-        query = f'''
+        query = '''
             SELECT cc.*, cat.nome AS categoria 
             FROM ComprasCartao cc
             LEFT JOIN Categorias cat ON cc.categoria_id = cat.id
-            WHERE cc.cartao_id = {ph}
-        '''
+            WHERE cc.cartao_id = ''' + ph
         params = [cartao_id]
 
         if mes and ano:
-            if DATABASE_URL:
-                query += f" AND EXTRACT(MONTH FROM cc.data_compra) = {ph} AND EXTRACT(YEAR FROM cc.data_compra) = {ph}"
-                params.extend([int(mes_str), int(ano_str)])
+            mes_int = int(mes)
+            ano_int = int(ano)
+            data_inicio = f"{ano_int:04d}-{mes_int:02d}-01"
+            if mes_int == 12:
+                data_fim = f"{ano_int + 1:04d}-01-01"
             else:
-                query += f" AND strftime('%m', cc.data_compra) = {ph} AND strftime('%Y', cc.data_compra) = {ph}"
-                params.extend([mes_str, ano_str])
+                data_fim = f"{ano_int:04d}-{mes_int + 1:02d}-01"
+
+            query += f" AND cc.data_compra >= {ph} AND cc.data_compra < {ph}"
+            params.extend([data_inicio, data_fim])
 
         if busca:
             query += f" AND cc.descricao LIKE {ph}"
@@ -186,21 +186,23 @@ def listar_compras_cartao(cartao_id, busca=None, mes=None, ano=None):
         compras = cursor.fetchall()
 
     except Exception:
-        # Importante: limpa o erro de transação abortada do postgres antes de executar o fallback
         if DATABASE_URL:
             conn.rollback()
 
-        # Fallback caso a tabela Categorias ainda não esteja estruturada no banco
-        query = f"SELECT *, NULL as categoria FROM ComprasCartao WHERE cartao_id = {ph}"
+        query = "SELECT *, NULL as categoria FROM ComprasCartao WHERE cartao_id = " + ph
         params = [cartao_id]
 
         if mes and ano:
-            if DATABASE_URL:
-                query += f" AND EXTRACT(MONTH FROM data_compra) = {ph} AND EXTRACT(YEAR FROM data_compra) = {ph}"
-                params.extend([int(mes_str), int(ano_str)])
+            mes_int = int(mes)
+            ano_int = int(ano)
+            data_inicio = f"{ano_int:04d}-{mes_int:02d}-01"
+            if mes_int == 12:
+                data_fim = f"{ano_int + 1:04d}-01-01"
             else:
-                query += f" AND strftime('%m', data_compra) = {ph} AND strftime('%Y', data_compra) = {ph}"
-                params.extend([mes_str, ano_str])
+                data_fim = f"{ano_int:04d}-{mes_int + 1:02d}-01"
+
+            query += f" AND data_compra >= {ph} AND data_compra < {ph}"
+            params.extend([data_inicio, data_fim])
 
         if busca:
             query += f" AND descricao LIKE {ph}"
