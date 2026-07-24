@@ -20,22 +20,33 @@ def listar_recorrentes(user_id):
     conn.close()
     return recorrentes
 
-def criar_recorrente(user_id, descricao, valor, tipo, dia_vencimento, categoria=None, forma_pagamento='Dinheiro/Pix'):
+def criar_recorrente(user_id, descricao, valor, tipo, dia_vencimento, categoria=None, forma_pagamento='Dinheiro/Pix', mes_especifico=None):
     """
-    Cadastra uma nova receita ou despesa fixa mensal vinculada ao usuário.
+    Cadastra uma nova receita ou despesa fixa mensal (ou de mês específico) vinculada ao usuário.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     
     placeholder = "%s" if DATABASE_URL else "?"
-    query = f'''
-        INSERT INTO TransacoesRecorrentes (user_id, descricao, valor, tipo, categoria, forma_pagamento, dia_vencimento)
-        VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
-    '''
     
-    cursor.execute(query, (user_id, descricao, float(valor), tipo, categoria, forma_pagamento, int(dia_vencimento)))
+    # Tenta inserir incluindo mes_especifico (caso a coluna exista no banco)
+    try:
+        query = f'''
+            INSERT INTO TransacoesRecorrentes (user_id, descricao, valor, tipo, categoria, forma_pagamento, dia_vencimento, mes_especifico)
+            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+        '''
+        cursor.execute(query, (user_id, descricao, float(valor), tipo, categoria, forma_pagamento, int(dia_vencimento), mes_especifico))
+    except Exception:
+        if DATABASE_URL:
+            conn.rollback()
+        # Fallback caso a tabela ainda não tenha a coluna mes_especifico criada
+        query = f'''
+            INSERT INTO TransacoesRecorrentes (user_id, descricao, valor, tipo, categoria, forma_pagamento, dia_vencimento)
+            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+        '''
+        cursor.execute(query, (user_id, descricao, float(valor), tipo, categoria, forma_pagamento, int(dia_vencimento)))
+        
     conn.commit()
-    
     cursor.close()
     conn.close()
 
@@ -136,7 +147,12 @@ def processar_recorrencias_do_mes(user_id=None):
 
     for item in recorrentes:
         # Se já foi processada neste mês, pula para a próxima
-        if item['ultimo_processamento'] == mes_ano_atual:
+        if item.get('ultimo_processamento') == mes_ano_atual:
+            continue
+
+        # Se a transação tem um mês específico definido (ex: '2026-07') e não é o mês atual, pula
+        mes_especifico = item.get('mes_especifico')
+        if mes_especifico and mes_especifico.strip() and mes_especifico != mes_ano_atual:
             continue
 
         # Trata o dia do vencimento caso o mês atual tenha menos dias (ex: dia 31 em fevereiro)

@@ -6,12 +6,9 @@
 <div class="mb-4 d-flex justify-content-between align-items-center">
     <div>
         <h2 class="fw-bold text-secondary"><i class="bi bi-arrow-repeat me-2"></i>Transações Recorrentes / Fixas</h2>
-        <p class="text-muted">Cadastre despesas ou receitas que se repetem todo mês. O sistema fará o lançamento automático no início de cada mês.</p>
+        <p class="text-muted">Cadastre despesas ou receitas fixas ou escolha um mês específico para o lançamento.</p>
     </div>
 </div>
-
-<!-- Mensagens de Alerta (Flash) -->
-with active flashes handled by base.html usually, but good to ensure -->
 
 <div class="row g-4">
     <!-- Formulário de Cadastro -->
@@ -22,7 +19,7 @@ with active flashes handled by base.html usually, but good to ensure -->
                 <form action="{{ url_for('recorrente.criar') }}" method="POST">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Descrição</label>
-                        <input type="text" class="form-control" name="descricao" placeholder="Ex: Aluguel, Internet..." required>
+                        <input type="text" class="form-control" name="descricao" placeholder="Ex: Salário dia 15, Aluguel..." required>
                     </div>
                     
                     <div class="mb-3">
@@ -55,7 +52,13 @@ with active flashes handled by base.html usually, but good to ensure -->
 
                     <div class="mb-3">
                         <label class="form-label fw-bold">Dia do Vencimento</label>
-                        <input type="number" min="1" max="31" class="form-control" name="dia_vencimento" placeholder="Ex: 10" required>
+                        <input type="number" min="1" max="31" class="form-control" name="dia_vencimento" placeholder="Ex: 15" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Mês Específico (Opcional)</label>
+                        <input type="month" class="form-control" name="mes_especifico">
+                        <div class="form-text text-muted" style="font-size: 0.8rem;">Se preenchido, cairá apenas neste mês/ano. Se vazio, repete todo mês.</div>
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100 fw-bold">
@@ -76,7 +79,7 @@ with active flashes handled by base.html usually, but good to ensure -->
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>Dia</th>
+                                <th>Dia / Competência</th>
                                 <th>Descrição</th>
                                 <th>Tipo</th>
                                 <th>Categoria</th>
@@ -87,7 +90,14 @@ with active flashes handled by base.html usually, but good to ensure -->
                         <tbody>
                             {% for item in recorrentes %}
                             <tr>
-                                <td><strong>Dia {{ item.dia_vencimento }}</strong></td>
+                                <td>
+                                    <strong>Dia {{ item.dia_vencimento }}</strong>
+                                    {% if item.mes_especifico %}
+                                        <br><span class="badge bg-info text-dark" style="font-size: 0.75rem;">{{ item.mes_especifico }}</span>
+                                    {% else %}
+                                        <br><span class="badge bg-secondary" style="font-size: 0.75rem;">Mensal</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ item.descricao }}</td>
                                 <td>
                                     {% if item.tipo == 'Despesa' %}

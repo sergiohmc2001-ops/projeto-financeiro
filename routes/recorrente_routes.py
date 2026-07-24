@@ -18,7 +18,7 @@ def gerenciar_recorrentes():
 @recorrente_bp.route('/recorrentes/criar', methods=['POST'])
 def criar():
     """
-    Cadastra uma nova transação recorrente.
+    Cadastra uma nova transação recorrente ou com mês específico.
     """
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
@@ -36,9 +36,23 @@ def criar():
     dia_vencimento_str = request.form.get('dia_vencimento')
     dia_vencimento = int(dia_vencimento_str) if dia_vencimento_str else 1
 
+    # Novo campo para definir se é de um mês/ano específico (ex: '2026-07') ou vazio (recorrente mensal)
+    mes_especifico = request.form.get('mes_especifico')
+    if not mes_especifico or not mes_especifico.strip():
+        mes_especifico = None
+
     if descricao and valor > 0 and tipo and dia_vencimento:
-        criar_recorrente(user_id, descricao, valor, tipo, dia_vencimento, categoria, forma_pagamento)
-        flash('Transação fixa cadastrada com sucesso!', 'success')
+        criar_recorrente(
+            user_id=user_id, 
+            descricao=descricao, 
+            valor=valor, 
+            tipo=tipo, 
+            dia_vencimento=dia_vencimento, 
+            categoria=categoria, 
+            forma_pagamento=forma_pagamento, 
+            mes_especifico=mes_especifico
+        )
+        flash('Transação cadastrada com sucesso!', 'success')
     else:
         flash('Preencha todos os campos obrigatórios corretamente.', 'danger')
 
