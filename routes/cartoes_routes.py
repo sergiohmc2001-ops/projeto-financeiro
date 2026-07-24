@@ -134,6 +134,9 @@ def nova_compra(cartao_id):
     # Captura da Categoria
     categoria_id = request.form.get('categoria_id', type=int)
 
+    # Captura se é despesa fixa (1 se marcado, 0 se desmarcado)
+    fixa = 1 if request.form.get('fixa') else 0
+
     mes = request.form.get('mes')
     ano = request.form.get('ano')
 
@@ -144,7 +147,8 @@ def nova_compra(cartao_id):
         valor_total=valor, 
         data_compra=data_compra, 
         parcelas=parcelas, 
-        categoria_id=categoria_id
+        categoria_id=categoria_id,
+        fixa=fixa
     )
 
     flash('Compra lançada no cartão com sucesso!', 'success')
@@ -169,6 +173,9 @@ def editar_compra(id):
     # Captura da Categoria
     categoria_id = request.form.get('categoria_id', type=int)
 
+    # Captura se é despesa fixa
+    fixa = 1 if request.form.get('fixa') else 0
+
     mes = request.form.get('mes')
     ano = request.form.get('ano')
 
@@ -180,7 +187,8 @@ def editar_compra(id):
         data_compra=data_compra, 
         parcelas=parcelas, 
         parcela_atual=parcela_atual, 
-        categoria_id=categoria_id
+        categoria_id=categoria_id,
+        fixa=fixa
     )
 
     flash('Compra atualizada!', 'success')

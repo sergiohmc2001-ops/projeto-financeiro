@@ -216,10 +216,10 @@ def listar_compras_cartao(cartao_id, user_id, busca=None, mes=None, ano=None):
         
     return compras
 
-def criar_compra_cartao(cartao_id, user_id, descricao, valor_total, data_compra, parcelas=1, categoria_id=None):
+def criar_compra_cartao(cartao_id, user_id, descricao, valor_total, data_compra, parcelas=1, categoria_id=None, fixa=0):
     """
     Registra uma compra no cartão vinculada ao usuário. Se o número de parcelas for maior que 1,
-    divide o valor total e gera automaticamente N registros nos meses subsequentes.
+    divide o valor total e gera automaticamente N registros nos meses subsequentes. Suporta marcação de despesa fixa.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -227,6 +227,7 @@ def criar_compra_cartao(cartao_id, user_id, descricao, valor_total, data_compra,
 
     parcelas = int(parcelas) if int(parcelas) > 0 else 1
     valor_total = float(valor_total)
+    fixa = int(fixa) if fixa else 0
 
     if isinstance(data_compra, str):
         data_base = datetime.strptime(data_compra, '%Y-%m-%d')
@@ -250,16 +251,24 @@ def criar_compra_cartao(cartao_id, user_id, descricao, valor_total, data_compra,
 
             try:
                 cursor.execute(f'''
-                    INSERT INTO ComprasCartao (user_id, cartao_id, descricao, valor, data_compra, parcelas, parcela_atual, categoria_id)
-                    VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
-                ''', (user_id, cartao_id, desc_final, valor_atual, data_str, parcelas, i, categoria_id))
+                    INSERT INTO ComprasCartao (user_id, cartao_id, descricao, valor, data_compra, parcelas, parcela_atual, categoria_id, fixa)
+                    VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
+                ''', (user_id, cartao_id, desc_final, valor_atual, data_str, parcelas, i, categoria_id, fixa))
             except Exception:
                 if DATABASE_URL:
                     conn.rollback()
-                cursor.execute(f'''
-                    INSERT INTO ComprasCartao (user_id, cartao_id, descricao, valor, data_compra, parcelas, parcela_atual)
-                    VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
-                ''', (user_id, cartao_id, desc_final, valor_atual, data_str, parcelas, i))
+                try:
+                    cursor.execute(f'''
+                        INSERT INTO ComprasCartao (user_id, cartao_id, descricao, valor, data_compra, parcelas, parcela_atual, fixa)
+                        VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
+                    ''', (user_id, cartao_id, desc_final, valor_atual, data_str, parcelas, i, fixa))
+                except Exception:
+                    if DATABASE_URL:
+                        conn.rollback()
+                    cursor.execute(f'''
+                        INSERT INTO ComprasCartao (user_id, cartao_id, descricao, valor, data_compra, parcelas, parcela_atual)
+                        VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
+                    ''', (user_id, cartao_id, desc_final, valor_atual, data_str, parcelas, i))
 
         conn.commit()
     except Exception:
@@ -290,9 +299,9 @@ def obter_compra_por_id(compra_id, user_id):
         conn.close()
     return compra
 
-def atualizar_compra_cartao(compra_id, user_id, descricao, valor, data_compra, parcelas, parcela_atual, categoria_id=None):
+def atualizar_compra_cartao(compra_id, user_id, descricao, valor, data_compra, parcelas, parcela_atual, categoria_id=None, fixa=0):
     """
-    Atualiza os dados de uma compra específica do cartão pertencente ao usuário.
+    Atualiza os dados de uma compra específica do cartão pertencente ao usuário, incluindo a marcação de fixa.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -303,21 +312,32 @@ def atualizar_compra_cartao(compra_id, user_id, descricao, valor, data_compra, p
     else:
         categoria_id = None
 
+    fixa = int(fixa) if fixa else 0
+
     try:
         try:
             cursor.execute(f'''
                 UPDATE ComprasCartao
-                SET descricao = {ph}, valor = {ph}, data_compra = {ph}, parcelas = {ph}, parcela_atual = {ph}, categoria_id = {ph}
+                SET descricao = {ph}, valor = {ph}, data_compra = {ph}, parcelas = {ph}, parcela_atual = {ph}, categoria_id = {ph}, fixa = {ph}
                 WHERE id = {ph} AND user_id = {ph}
-            ''', (descricao, valor, data_compra, parcelas, parcela_atual, categoria_id, compra_id, user_id))
+            ''', (descricao, valor, data_compra, parcelas, parcela_atual, categoria_id, fixa, compra_id, user_id))
         except Exception:
             if DATABASE_URL:
                 conn.rollback()
-            cursor.execute(f'''
-                UPDATE ComprasCartao
-                SET descricao = {ph}, valor = {ph}, data_compra = {ph}, parcelas = {ph}, parcela_atual = {ph}
-                WHERE id = {ph} AND user_id = {ph}
-            ''', (descricao, valor, data_compra, parcelas, parcela_atual, compra_id, user_id))
+            try:
+                cursor.execute(f'''
+                    UPDATE ComprasCartao
+                    SET descricao = {ph}, valor = {ph}, data_compra = {ph}, parcelas = {ph}, parcela_atual = {ph}, fixa = {ph}
+                    WHERE id = {ph} AND user_id = {ph}
+                ''', (descricao, valor, data_compra, parcelas, parcela_atual, fixa, compra_id, user_id))
+            except Exception:
+                if DATABASE_URL:
+                    conn.rollback()
+                cursor.execute(f'''
+                    UPDATE ComprasCartao
+                    SET descricao = {ph}, valor = {ph}, data_compra = {ph}, parcelas = {ph}, parcela_atual = {ph}
+                    WHERE id = {ph} AND user_id = {ph}
+                ''', (descricao, valor, data_compra, parcelas, parcela_atual, compra_id, user_id))
 
         conn.commit()
     except Exception:

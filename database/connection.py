@@ -83,7 +83,6 @@ def init_db():
         if is_postgres:
             cursor.execute("ALTER TABLE cartoes ADD COLUMN IF NOT EXISTS cor TEXT DEFAULT '#1f2937';")
         else:
-            # SQLite não suporta 'IF NOT EXISTS' no ALTER TABLE, então verificamos manualmente se a coluna existe
             cursor.execute("PRAGMA table_info(cartoes);")
             colunas = [coluna[1] for coluna in cursor.fetchall()]
             if 'cor' not in colunas:
@@ -103,20 +102,24 @@ def init_db():
             parcelas INTEGER NOT NULL DEFAULT 1,
             parcela_atual INTEGER NOT NULL DEFAULT 1,
             categoria_id INTEGER,
+            fixa INTEGER DEFAULT 0,
             FOREIGN KEY (user_id) REFERENCES usuarios (id) ON DELETE CASCADE,
             FOREIGN KEY (cartao_id) REFERENCES cartoes (id) ON DELETE CASCADE
         )
     """)
 
-    # Garante que a coluna 'user_id' exista na tabela comprascartao caso ela já tenha sido criada antes sem ela
+    # Garante que as colunas 'user_id' e 'fixa' existam na tabela comprascartao
     try:
         if is_postgres:
             cursor.execute("ALTER TABLE comprascartao ADD COLUMN IF NOT EXISTS user_id INTEGER;")
+            cursor.execute("ALTER TABLE comprascartao ADD COLUMN IF NOT EXISTS fixa INTEGER DEFAULT 0;")
         else:
             cursor.execute("PRAGMA table_info(comprascartao);")
             colunas_compras = [coluna[1] for coluna in cursor.fetchall()]
             if 'user_id' not in colunas_compras:
                 cursor.execute("ALTER TABLE comprascartao ADD COLUMN user_id INTEGER;")
+            if 'fixa' not in colunas_compras:
+                cursor.execute("ALTER TABLE comprascartao ADD COLUMN fixa INTEGER DEFAULT 0;")
     except Exception:
         if is_postgres:
             conn.rollback()

@@ -159,7 +159,12 @@
                         {% set ns.total = ns.total + comp.valor %}
                         <tr>
                             <td>{{ comp.data_compra }}</td>
-                            <td class="fw-bold">{{ comp.descricao }}</td>
+                            <td class="fw-bold">
+                                {{ comp.descricao }}
+                                {% if comp.fixa == 1 %}
+                                    <span class="badge bg-info text-dark ms-1" style="font-size: 0.7rem;">Fixa</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if comp.categoria %}
                                     <span class="badge bg-light text-dark border">{{ comp.categoria }}</span>
@@ -248,6 +253,10 @@
                             <input type="number" min="1" name="parcela_atual" class="form-control" value="{{ comp.parcela_atual }}" required>
                         </div>
                     </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" name="fixa" value="1" class="form-check-input" id="editarFixa{{ comp.id }}" {% if comp.fixa == 1 %}checked{% endif %}>
+                        <label class="form-check-label" for="editarFixa{{ comp.id }}">Despesa Fixa / Recorrente</label>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -301,6 +310,10 @@
                         <label class="form-label">Número de Parcelas</label>
                         <input type="number" min="1" name="parcelas" class="form-control" value="1" placeholder="1 para compra à vista" required>
                         <div class="form-text">Se for maior que 1, as parcelas futuras serão lançadas automaticamente mês a mês.</div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" name="fixa" value="1" class="form-check-input" id="novaFixa">
+                        <label class="form-check-label" for="novaFixa">Despesa Fixa / Recorrente</label>
                     </div>
                 </div>
                 <div class="modal-footer">
