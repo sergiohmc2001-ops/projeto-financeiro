@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from flask import Blueprint, render_template, jsonify, request, session, redirect, url_for
 from models.dashboard_model import (
     obter_resumo_cards,
@@ -22,8 +22,8 @@ def index():
     mes = request.args.get('mes', type=int, default=agora.month)
     ano = request.args.get('ano', type=int, default=agora.year)
 
-    # Passa o user_id, mês e ano para as funções que geram as métricas isoladas
-    cards = obter_resumo_cards(user_id=user_id, mes=mes, ano=ano)
+    # Passa o user_id, mês, ano e a data atual para que o model filtre receitas futuras se necessário
+    cards = obter_resumo_cards(user_id=user_id, mes=mes, ano=ano, data_atual=date.today())
     ultimas_despesas = obter_ultimas_despesas(user_id=user_id, limit=5, mes=mes, ano=ano)
     
     return render_template(
