@@ -1,4 +1,5 @@
 from datetime import datetime
+import calendar
 from database.connection import DATABASE_URL, get_db_connection
 
 def listar_recorrentes(user_id):
@@ -38,6 +39,53 @@ def criar_recorrente(user_id, descricao, valor, tipo, dia_vencimento, categoria=
     cursor.close()
     conn.close()
 
+def registrar_recorrente_via_cartao(user_id, descricao, valor, data_compra, categoria=None):
+    """
+    Espelha uma compra de cartão marcada como fixa na tabela de Transações Recorrentes,
+    evitando duplicidade caso já exista um registro com a mesma descrição e valor.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    placeholder = "%s" if DATABASE_URL else "?"
+
+    if isinstance(data_compra, str):
+        data_base = datetime.strptime(data_compra, '%Y-%m-%d')
+    else:
+        data_base = data_compra
+
+    dia_vencimento = data_base.day
+    mes_ano_atual = data_base.strftime('%Y-%m')
+
+    # Verifica se já existe uma recorrente idêntica para evitar duplicidade visual na tela
+    cursor.execute(f'''
+        SELECT id FROM TransacoesRecorrentes 
+        WHERE user_id = {placeholder} AND descricao = {placeholder} AND valor = {placeholder}
+    ''', (user_id, descricao, float(valor)))
+    existe = cursor.fetchone()
+
+    if not existe:
+        cat_final = categoria or 'Cartão de Crédito'
+        try:
+            cursor.execute(f'''
+                INSERT INTO TransacoesRecorrentes (user_id, descricao, valor, tipo, categoria, forma_pagamento, dia_vencimento, ativo, ultimo_processamento)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, 'Despesa', {placeholder}, 'Cartão', {placeholder}, 1, {placeholder})
+            ''', (user_id, descricao, float(valor), cat_final, dia_vencimento, mes_ano_atual))
+        except Exception:
+            if DATABASE_URL:
+                conn.rollback()
+            try:
+                # Fallback caso a tabela não tenha todas as colunas opcionais
+                cursor.execute(f'''
+                    INSERT INTO TransacoesRecorrentes (user_id, descricao, valor, tipo, dia_vencimento)
+                    VALUES ({placeholder}, {placeholder}, {placeholder}, 'Despesa', {placeholder})
+                ''', (user_id, descricao, float(valor), dia_vencimento))
+            except Exception:
+                pass
+        conn.commit()
+
+    cursor.close()
+    conn.close()
+
 def obter_recorrente_por_id(recorrente_id, user_id):
     """
     Retorna os detalhes de uma transação recorrente específica do usuário.
@@ -70,7 +118,7 @@ def excluir_recorrente(recorrente_id, user_id):
 def processar_recorrencias_do_mes(user_id=None):
     """
     Verifica contas fixas ativas. Se user_id for passado, processa apenas para ele; 
-    caso contrário, pode ser adaptado ou chamado passando o usuário da sessão.
+    caso contrário, processa para todos os usuários ativos.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -96,8 +144,6 @@ def processar_recorrencias_do_mes(user_id=None):
         try:
             data_lancamento = datetime(hoje.year, hoje.month, dia).strftime('%Y-%m-%d')
         except ValueError:
-            # Pega o último dia do mês corrente se o dia configurado não existir no mês
-            import calendar
             ultimo_dia = calendar.monthrange(hoje.year, hoje.month)[1]
             data_lancamento = datetime(hoje.year, hoje.month, ultimo_dia).strftime('%Y-%m-%d')
 

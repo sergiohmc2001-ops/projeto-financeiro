@@ -1,6 +1,7 @@
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from database.connection import DATABASE_URL, get_db_connection
+from models.recorrente_model import registrar_recorrente_via_cartao
 
 def listar_cartoes(user_id, busca=None):
     """
@@ -270,6 +271,10 @@ def criar_compra_cartao(cartao_id, user_id, descricao, valor_total, data_compra,
                         VALUES ({ph}, {ph}, {ph}, {ph}, {ph}, {ph}, {ph})
                     ''', (user_id, cartao_id, desc_final, valor_atual, data_str, parcelas, i))
 
+        # Se for marcada como fixa, espelha também na tabela de Transações Recorrentes
+        if fixa == 1:
+            registrar_recorrente_via_cartao(user_id, descricao, valor_total, data_base, categoria_id)
+
         conn.commit()
     except Exception:
         if DATABASE_URL:
@@ -338,6 +343,11 @@ def atualizar_compra_cartao(compra_id, user_id, descricao, valor, data_compra, p
                     SET descricao = {ph}, valor = {ph}, data_compra = {ph}, parcelas = {ph}, parcela_atual = {ph}
                     WHERE id = {ph} AND user_id = {ph}
                 ''', (descricao, valor, data_compra, parcelas, parcela_atual, compra_id, user_id))
+
+        # Se foi alterada para fixa, garante que conste nas recorrentes também
+        if fixa == 1:
+            data_base = datetime.strptime(data_compra, '%Y-%m-%d') if isinstance(data_compra, str) else data_compra
+            registrar_recorrente_via_cartao(user_id, descricao, valor, data_base, categoria_id)
 
         conn.commit()
     except Exception:
