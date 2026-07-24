@@ -6,6 +6,7 @@ from models.dashboard_model import (
     obter_despesas_por_mes,
     obter_ultimas_despesas
 )
+from models.recorrente_model import processar_recorrencias_do_mes
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -16,6 +17,9 @@ def index():
         return redirect(url_for('auth.login'))
         
     user_id = session['user_id']
+
+    # Processa as transações recorrentes/fixas do usuário antes de carregar os dados do dashboard
+    processar_recorrencias_do_mes(user_id=user_id)
 
     # Obtém o mês e ano do parâmetro de URL (se não passados, usa o mês/ano atuais)
     agora = datetime.now()
