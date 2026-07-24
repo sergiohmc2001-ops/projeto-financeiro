@@ -14,34 +14,32 @@
 <div class="row g-3 mb-4">
     {% for c in cartoes %}
     <div class="col-md-4">
-        <!-- Definimos a cor do cartão como uma variável CSS inline (--card-cor) -->
-        <div class="card border-0 shadow-sm {% if cartao_detalhe and cartao_detalhe.id == c.id %}border-primary border-2{% endif %} h-100" style="--card-cor: {{ c.cor if c.cor else '#1f2937' }};">
-            <!-- Faixa superior colorida usando a variável CSS -->
-            <div style="height: 8px; background-color: var(--card-cor); border-top-left-radius: 0.375rem; border-top-right-radius: 0.375rem;"></div>
+        <!-- Cartão inteiro com a cor personalizada via variável CSS (--cor-cartao) -->
+        <div class="card card-custom border-0 shadow-sm text-white {% if cartao_detalhe and cartao_detalhe.id == c.id %}border-white border-3{% endif %} h-100" style="--cor-cartao: {{ c.cor if c.cor else '#1f2937' }};">
             
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="fw-bold mb-0 text-dark">{{ c.nome }}</h5>
-                    <span class="badge text-white" style="background-color: var(--card-cor);">{{ c.bandeira }}</span>
+                    <h5 class="fw-bold mb-0 text-white">{{ c.nome }}</h5>
+                    <span class="badge bg-white text-dark">{{ c.bandeira }}</span>
                 </div>
-                <p class="text-muted small mb-2"><i class="bi bi-building me-1"></i>{{ c.banco }}</p>
+                <p class="text-white-50 small mb-2"><i class="bi bi-building me-1"></i>{{ c.banco }}</p>
                 <div class="d-flex justify-content-between mb-1">
-                    <span class="small text-secondary">Limite Total:</span>
+                    <span class="small text-white-50">Limite Total:</span>
                     <span class="fw-bold">R$ {{ "%.2f"|format(c.limite) }}</span>
                 </div>
                 <div class="d-flex justify-content-between mb-3">
-                    <span class="small text-secondary">Fechamento / Vencimento:</span>
+                    <span class="small text-white-50">Fechamento / Vencimento:</span>
                     <span class="small fw-bold">Dia {{ c.dia_fechamento }} / Dia {{ c.dia_vencimento }}</span>
                 </div>
                 <div class="d-flex gap-1 justify-content-between">
-                    <a href="{{ url_for('cartoes.index', cartao_id=c.id, mes=mes_atual, ano=ano_atual) }}" class="btn btn-sm btn-outline-primary flex-fill">
+                    <a href="{{ url_for('cartoes.index', cartao_id=c.id, mes=mes_atual, ano=ano_atual) }}" class="btn btn-sm btn-light flex-fill text-dark fw-bold">
                         <i class="bi bi-receipt me-1"></i> Ver Fatura
                     </a>
-                    <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEditarCartao{{ c.id }}">
+                    <button class="btn btn-sm btn-warning text-dark" data-bs-toggle="modal" data-bs-target="#modalEditarCartao{{ c.id }}">
                         <i class="bi bi-pencil"></i>
                     </button>
                     <form action="{{ url_for('cartoes.excluir_cartao_route', id=c.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Excluir este cartão apagará todas as compras associadas. Confirmar?');">
-                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                        <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
                     </form>
                 </div>
             </div>
@@ -57,7 +55,7 @@
                         <h5 class="modal-title fw-bold">Editar Cartão</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body text-start">
                         <div class="mb-3">
                             <label class="form-label">Nome do Cartão</label>
                             <input type="text" name="nome" class="form-control" value="{{ c.nome }}" required>
@@ -280,7 +278,7 @@
                     <h5 class="modal-title fw-bold">Lançar Compra em {{ cartao_detalhe.nome }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body text-start">
                     <div class="mb-3">
                         <label class="form-label">Descrição da Compra</label>
                         <input type="text" name="descricao" class="form-control" placeholder="Ex: Mercado / Eletrônicos" required>
@@ -335,7 +333,7 @@
                     <h5 class="modal-title fw-bold">Cadastrar Novo Cartão</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body text-start">
                     <div class="mb-3">
                         <label class="form-label">Nome do Cartão</label>
                         <input type="text" name="nome" class="form-control" placeholder="Ex: Nubank Black" required>
@@ -395,7 +393,6 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
         
-        // Garante o estado correto caso reabra o modal
         if (novaFixa.checked) {
             inputParcelasNova.value = 1;
             inputParcelasNova.disabled = true;

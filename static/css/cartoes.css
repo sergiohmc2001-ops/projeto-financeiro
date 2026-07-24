@@ -1,0 +1,28 @@
+/* Estilo customizado para os cards de cartões de crédito */
+.card-custom {
+    border: none !important;
+    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, 0.075);
+    height: 100%;
+    /* Utiliza a variável do banco de dados ou aplica um tom escuro seguro como fallback se vier vazia */
+    background-color: var(--cor-cartao, #1f2937) !important;
+}
+
+/* Força todo e qualquer texto de dentro do card personalizado a ficar branco e legível */
+.card-custom, 
+.card-custom h5, 
+.card-custom p, 
+.card-custom span, 
+.card-custom div, 
+.card-custom small {
+    color: #ffffff !important;
+}
+
+/* Mantém o texto secundário levemente translúcido mas visível */
+.card-custom .text-white-50 {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Garante que o badge da bandeira continue contrastando bem */
+.card-custom .badge.bg-white {
+    color: #000000 !important;
+}
