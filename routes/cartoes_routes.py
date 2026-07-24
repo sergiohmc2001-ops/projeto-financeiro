@@ -129,13 +129,18 @@ def nova_compra(cartao_id):
     valor = float(valor_str) if valor_str else 0.0
     
     data_compra = request.form.get('data_compra')
-    parcelas = int(request.form.get('parcelas') or 1)
+    
+    # Captura se é despesa fixa (1 se marcado, 0 se desmarcado)
+    fixa = 1 if request.form.get('fixa') else 0
+
+    # Se for fixa, forçamos o número de parcelas para 1 para evitar divisão indevida ou lógicas erradas
+    if fixa == 1:
+        parcelas = 1
+    else:
+        parcelas = int(request.form.get('parcelas') or 1)
     
     # Captura da Categoria
     categoria_id = request.form.get('categoria_id', type=int)
-
-    # Captura se é despesa fixa (1 se marcado, 0 se desmarcado)
-    fixa = 1 if request.form.get('fixa') else 0
 
     mes = request.form.get('mes')
     ano = request.form.get('ano')
@@ -167,14 +172,20 @@ def editar_compra(id):
     valor = float(valor_str) if valor_str else 0.0
     
     data_compra = request.form.get('data_compra')
-    parcelas = int(request.form.get('parcelas') or 1)
+    
+    # Captura se é despesa fixa
+    fixa = 1 if request.form.get('fixa') else 0
+
+    # Se for fixa, forçamos o número de parcelas para 1
+    if fixa == 1:
+        parcelas = 1
+    else:
+        parcelas = int(request.form.get('parcelas') or 1)
+
     parcela_atual = int(request.form.get('parcela_atual') or 1)
     
     # Captura da Categoria
     categoria_id = request.form.get('categoria_id', type=int)
-
-    # Captura se é despesa fixa
-    fixa = 1 if request.form.get('fixa') else 0
 
     mes = request.form.get('mes')
     ano = request.form.get('ano')

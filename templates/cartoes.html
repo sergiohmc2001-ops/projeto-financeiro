@@ -246,7 +246,7 @@
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label">Total de Parcelas</label>
-                            <input type="number" min="1" name="parcelas" class="form-control" value="{{ comp.parcelas }}" required>
+                            <input type="number" min="1" name="parcelas" id="inputParcelasEdit{{ comp.id }}" class="form-control" value="{{ comp.parcelas }}" required>
                         </div>
                         <div class="col-6">
                             <label class="form-label">Parcela Atual</label>
@@ -254,7 +254,7 @@
                         </div>
                     </div>
                     <div class="mb-3 form-check">
-                        <input type="checkbox" name="fixa" value="1" class="form-check-input" id="editarFixa{{ comp.id }}" {% if comp.fixa == 1 %}checked{% endif %}>
+                        <input type="checkbox" name="fixa" value="1" class="form-check-input check-fixa-edit" data-target="inputParcelasEdit{{ comp.id }}" id="editarFixa{{ comp.id }}" {% if comp.fixa == 1 %}checked{% endif %}>
                         <label class="form-check-label" for="editarFixa{{ comp.id }}">Despesa Fixa / Recorrente</label>
                     </div>
                 </div>
@@ -308,8 +308,8 @@
                     {% endif %}
                     <div class="mb-3">
                         <label class="form-label">Número de Parcelas</label>
-                        <input type="number" min="1" name="parcelas" class="form-control" value="1" placeholder="1 para compra à vista" required>
-                        <div class="form-text">Se for maior que 1, as parcelas futuras serão lançadas automaticamente mês a mês.</div>
+                        <input type="number" min="1" name="parcelas" id="inputParcelasNova" class="form-control" value="1" placeholder="1 para compra à vista" required>
+                        <div class="form-text">Se for marcada como Fixa, o número de parcelas é ajustado automaticamente para 1.</div>
                     </div>
                     <div class="mb-3 form-check">
                         <input type="checkbox" name="fixa" value="1" class="form-check-input" id="novaFixa">
@@ -377,4 +377,62 @@
         </div>
     </div>
 </div>
+
+<!-- Script para gerenciar o comportamento do campo de parcelas quando "Fixa" for marcada -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Para o modal de Nova Compra
+    const novaFixa = document.getElementById('novaFixa');
+    const inputParcelasNova = document.getElementById('inputParcelasNova');
+
+    if (novaFixa && inputParcelasNova) {
+        novaFixa.addEventListener('change', function() {
+            if (this.checked) {
+                inputParcelasNova.value = 1;
+                inputParcelasNova.disabled = true;
+            } else {
+                inputParcelasNova.disabled = false;
+            }
+        });
+        
+        // Garante o estado correto caso reabra o modal
+        if (novaFixa.checked) {
+            inputParcelasNova.value = 1;
+            inputParcelasNova.disabled = true;
+        }
+    }
+
+    // Para os modais de Edição de Compra
+    const checksEdicao = document.querySelectorAll('.check-fixa-edit');
+    checksEdicao.forEach(function(checkbox) {
+        const targetId = checkbox.getAttribute('data-target');
+        const inputParcelas = document.getElementById(targetId);
+
+        if (checkbox && inputParcelas) {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    inputParcelas.value = 1;
+                    inputParcelas.disabled = true;
+                } else {
+                    inputParcelas.disabled = false;
+                }
+            });
+
+            if (checkbox.checked) {
+                inputParcelas.value = 1;
+                inputParcelas.disabled = true;
+            }
+        }
+    });
+    
+    // Antes de enviar o formulário, remove o "disabled" para o input não ir vazio no POST
+    const forms = document.querySelectorAll('form');
+    forms.forEach(function(form) {
+        form.addEventListener('submit', function() {
+            const disabledInputs = form.querySelectorAll('input:disabled');
+            disabledInputs.forEach(input => input.disabled = false);
+        });
+    });
+});
+</script>
 {% endblock %}
