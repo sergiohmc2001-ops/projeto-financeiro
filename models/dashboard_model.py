@@ -1,7 +1,6 @@
-from datetime import date
 from database.connection import DATABASE_URL, get_db_connection
 
-def obter_resumo_cards(user_id, mes=None, ano=None):
+def obter_resumo_cards(user_id, mes=None, ano=None, data_atual=None):
     """
     Calcula os indicadores principais da tela inicial filtrados por Usuário e Mês/Ano:
     1. Total de receitas (ganhos do mês até a data de hoje)
@@ -19,18 +18,26 @@ def obter_resumo_cards(user_id, mes=None, ano=None):
     ano_str = str(ano) if ano else None
     ph = "%s" if DATABASE_URL else "?"
     
-    # Data de hoje para travar receitas futuras
-    hoje_str = date.today().isoformat() # Formato 'YYYY-MM-DD'
+    # Se data_atual foi passada, usa ela, senão pode tratar no escopo
+    hoje_str = data_atual.isoformat() if data_atual else None
 
     if mes and ano:
         if DATABASE_URL:
-            cursor.execute(f"""
-                SELECT COALESCE(SUM(valor), 0) FROM receitas 
-                WHERE user_id = {ph} 
-                  AND EXTRACT(MONTH FROM data_receita) = {ph} 
-                  AND EXTRACT(YEAR FROM data_receita) = {ph}
-                  AND data_receita <= {ph}
-            """, (user_id, int(mes_str), int(ano_str), hoje_str))
+            if hoje_str:
+                cursor.execute(f"""
+                    SELECT COALESCE(SUM(valor), 0) FROM receitas 
+                    WHERE user_id = {ph} 
+                      AND EXTRACT(MONTH FROM data_receita) = {ph} 
+                      AND EXTRACT(YEAR FROM data_receita) = {ph}
+                      AND data_receita <= {ph}
+                """, (user_id, int(mes_str), int(ano_str), hoje_str))
+            else:
+                cursor.execute(f"""
+                    SELECT COALESCE(SUM(valor), 0) FROM receitas 
+                    WHERE user_id = {ph} 
+                      AND EXTRACT(MONTH FROM data_receita) = {ph} 
+                      AND EXTRACT(YEAR FROM data_receita) = {ph}
+                """, (user_id, int(mes_str), int(ano_str)))
             total_receitas = cursor.fetchone()[0]
 
             cursor.execute(f"""
@@ -45,13 +52,21 @@ def obter_resumo_cards(user_id, mes=None, ano=None):
             """, (user_id, int(mes_str), int(ano_str)))
             total_faturas = cursor.fetchone()[0]
         else:
-            cursor.execute(f"""
-                SELECT COALESCE(SUM(valor), 0) FROM receitas 
-                WHERE user_id = {ph} 
-                  AND strftime('%m', data_receita) = {ph} 
-                  AND strftime('%Y', data_receita) = {ph}
-                  AND data_receita <= {ph}
-            """, (user_id, mes_str, ano_str, hoje_str))
+            if hoje_str:
+                cursor.execute(f"""
+                    SELECT COALESCE(SUM(valor), 0) FROM receitas 
+                    WHERE user_id = {ph} 
+                      AND strftime('%m', data_receita) = {ph} 
+                      AND strftime('%Y', data_receita) = {ph}
+                      AND data_receita <= {ph}
+                """, (user_id, mes_str, ano_str, hoje_str))
+            else:
+                cursor.execute(f"""
+                    SELECT COALESCE(SUM(valor), 0) FROM receitas 
+                    WHERE user_id = {ph} 
+                      AND strftime('%m', data_receita) = {ph} 
+                      AND strftime('%Y', data_receita) = {ph}
+                """, (user_id, mes_str, ano_str))
             total_receitas = cursor.fetchone()[0]
 
             cursor.execute(f"""
@@ -66,10 +81,15 @@ def obter_resumo_cards(user_id, mes=None, ano=None):
             """, (user_id, mes_str, ano_str))
             total_faturas = cursor.fetchone()[0]
     else:
-        cursor.execute(f"SELECT COALESCE(SUM(valor), 0) FROM receitas WHERE user_id = {ph} AND data_receita <= {ph}", (user_id, hoje_str))
+        if hoje_str:
+            cursor.execute(f"SELECT COALESCE(SUM(valor), 0) FROM receitas WHERE user_id = {ph} AND data_receita <= {ph}", (user_id, hoje_str))
+        else:
+            cursor.execute(f"SELECT COALESCE(SUM(valor), 0) FROM receitas WHERE user_id = {ph}", (user_id,))
         total_receitas = cursor.fetchone()[0]
+        
         cursor.execute(f"SELECT COALESCE(SUM(valor), 0) FROM despesas WHERE user_id = {ph}", (user_id,))
         total_despesas = cursor.fetchone()[0]
+        
         cursor.execute(f"SELECT COALESCE(SUM(valor), 0) FROM comprascartao WHERE user_id = {ph}", (user_id,))
         total_faturas = cursor.fetchone()[0]
 
@@ -111,10 +131,6 @@ def obter_resumo_cards(user_id, mes=None, ano=None):
     }
 
 def obter_despesas_por_categoria(user_id, mes=None, ano=None):
-    """
-    Retorna os dados agrupados por categoria para o Gráfico de Rosca/Pizza
-    filtrados pelo usuário e mês/ano selecionados.
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
@@ -157,10 +173,6 @@ def obter_despesas_por_categoria(user_id, mes=None, ano=None):
     return {"labels": labels, "valores": valores}
 
 def obter_despesas_por_mes(user_id, mes=None, ano=None):
-    """
-    Retorna o total gasto mês a mês para o Gráfico de Barras do usuário.
-    Exibe o histórico até o ano selecionado.
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
@@ -214,9 +226,6 @@ def obter_despesas_por_mes(user_id, mes=None, ano=None):
     return {"labels": labels, "valores": valores}
 
 def obter_ultimas_despesas(user_id, limit=5, mes=None, ano=None):
-    """
-    Retorna as despesas lançadas pelo usuário dentro do período filtrado.
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     ph = "%s" if DATABASE_URL else "?"
