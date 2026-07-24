@@ -112,7 +112,6 @@ def calcular_total_receitas(user_id, fonte=None, busca=None, data_inicio=None, d
     if not resultado:
         return 0.0
     
-    # Compatibilidade segura para pegar o valor do dicionário ou tupla
     if isinstance(resultado, dict):
         total = resultado.get('total') or resultado.get('TOTAL')
     else:
